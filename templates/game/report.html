@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block title %}Жалоба - Cozy Paws{% endblock %}
+{% block content %}
+<section class="auth-card">
+    <h1>Жалоба</h1>
+    <p class="muted">{{ chat_message.profile.public_name }}: {{ chat_message.body }}</p>
+    <form method="post" class="stack-form">
+        {% csrf_token %}
+        {{ form.as_p }}
+        <button class="button primary" type="submit">Отправить</button>
+    </form>
+</section>
+{% endblock %}

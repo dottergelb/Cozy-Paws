@@ -5,6 +5,10 @@
     <div><span class="eyebrow">Магазин</span><strong>Полезные вещи</strong></div>
     <div class="coins"><svg><use href="#i-coin"></use></svg>{{ profile.coins }}</div>
 </section>
+<section class="quick-grid">
+    <a class="button ghost" href="{% url 'wearable_shop' %}">Одежда</a>
+    <a class="button ghost" href="{% url 'inventory' %}">Инвентарь</a>
+</section>
 <section class="item-grid">
     {% for item in items %}
         <article class="item-card">
@@ -16,6 +20,8 @@
                 {% if item.mood_delta %}<span>Настроение {{ item.mood_delta }}</span>{% endif %}
                 {% if item.hunger_delta %}<span>Сытость {{ item.hunger_delta }}</span>{% endif %}
                 {% if item.experience_delta %}<span>Опыт +{{ item.experience_delta }}</span>{% endif %}
+                {% if item.beauty_delta %}<span>Красота +{{ item.beauty_delta }}</span>{% endif %}
+                {% if item.hearts_delta %}<span>Сердечки +{{ item.hearts_delta }}</span>{% endif %}
             </div>
             <form method="post" action="{% url 'buy_item' item.id %}">
                 {% csrf_token %}

@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block title %}Выставки - Cozy Paws{% endblock %}
+{% block content %}
+<section class="summary-row">
+    <div><span class="eyebrow">Выставки</span><strong>{% if pet %}Сила {{ pet.show_power }}{% else %}Нет питомца{% endif %}</strong></div>
+    <div class="coins"><svg><use href="#i-coin"></use></svg>{{ profile.coins }}</div>
+</section>
+<section class="item-grid">
+    {% for show in shows %}
+        <article class="item-card">
+            <div class="item-icon"><svg><use href="#i-star"></use></svg></div>
+            <h2>{{ show.name }}</h2>
+            <p>{{ show.description }}</p>
+            <div class="effect-list">
+                <span>Уровень {{ show.min_level }}+</span>
+                <span>Взнос {{ show.entry_fee }}</span>
+                <span>Монеты +{{ show.reward_coins }}</span>
+                <span>Сердечки +{{ show.reward_hearts }}</span>
+            </div>
+            <form method="post" action="{% url 'enter_show' show.id %}">
+                {% csrf_token %}
+                <button class="button primary" type="submit">Участвовать</button>
+            </form>
+        </article>
+    {% endfor %}
+</section>
+<section class="panel">
+    <div class="section-head"><h2>Последние выступления</h2></div>
+    {% for entry in entries %}
+        <div class="quest-line"><span>{{ entry.show.name }} · {{ entry.pet.name }} · {{ entry.medal }}</span><strong>{{ entry.score }}</strong></div>
+    {% empty %}
+        <p class="muted">Выступлений пока нет.</p>
+    {% endfor %}
+</section>
+{% endblock %}

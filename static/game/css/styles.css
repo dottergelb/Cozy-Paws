@@ -263,7 +263,9 @@ svg {
 .hero-actions,
 .action-grid,
 .feature-grid,
-.item-grid {
+.item-grid,
+.quick-grid,
+.two-actions {
     display: grid;
     gap: 12px;
 }
@@ -525,6 +527,15 @@ svg {
     margin-bottom: 14px;
 }
 
+.quick-grid {
+    grid-template-columns: 1fr 1fr;
+    margin-bottom: 14px;
+}
+
+.two-actions {
+    grid-template-columns: 1fr 1fr;
+}
+
 .action-button {
     color: #fff;
 }
@@ -587,6 +598,30 @@ svg {
 
 .mini-link {
     font-weight: 800;
+}
+
+.mini-button {
+    border: 0;
+    border-radius: 8px;
+    padding: 7px 10px;
+    color: #fff;
+    background: var(--mint-dark);
+    font-size: 12px;
+    font-weight: 900;
+    cursor: pointer;
+}
+
+.inline-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.item-dot {
+    display: block;
+    width: 34px;
+    height: 34px;
+    border-radius: 10px;
 }
 
 .quest-line {

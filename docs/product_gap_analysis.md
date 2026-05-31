@@ -176,6 +176,29 @@ Priority: medium-high if social features are added.
 8. Add online presence counter.
 9. Consider guest mode only after measuring registration friction.
 
+## Implementation Status
+
+Implemented in Cozy Paws:
+
+- Server-side cooldowns for pet actions, buying, quest claiming, training, shows, chat, messages, and support tickets.
+- `beauty`, `agility`, `obedience`, and `charm` pet progression stats.
+- Hearts as a second non-premium currency.
+- Consumable item effects for beauty and hearts.
+- Wardrobe system with wearable shop, ownership, equip, unequip, sell, slots, and wearable bonuses.
+- Competitions/shows with level requirements, entry fees, score calculation, medals, and rewards.
+- Training actions for agility, obedience, and charm.
+- Friend requests, accepting friends, blocking profiles.
+- Private messages.
+- Moderated global chat with report flow.
+- Support tickets.
+- Online presence counter based on recent activity.
+- Admin registration for all new moderation and gameplay models.
+
+Deferred intentionally:
+
+- Guest mode. Current registration-first flow is simpler and avoids edge cases around anonymous state migration, chat abuse, and account recovery.
+- Paid/premium currency. This requires legal/compliance and payment-provider decisions before implementation.
+
 ## Non-Goals
 
 - Do not copy mpets.mobi UI, layout, icons, images, item names, texts, or brand.

@@ -29,6 +29,9 @@
         <div><span>Энергия</span><strong>{{ pet.energy }}</strong></div>
         <div><span>Настроение</span><strong>{{ pet.mood }}</strong></div>
         <div><span>Сытость</span><strong>{{ pet.hunger }}</strong></div>
+        <div><span>Красота</span><strong>{{ pet.beauty }}</strong></div>
+        <div><span>Навыки</span><strong>{{ pet.agility|add:pet.obedience|add:pet.charm }}</strong></div>
+        <div><span>Сила показа</span><strong>{{ pet.show_power }}</strong></div>
     </div>
 </section>
 
@@ -37,6 +40,12 @@
     <form method="post" action="{% url 'pet_action' 'play' %}">{% csrf_token %}<button class="action-button play" type="submit">Поиграть</button></form>
     <form method="post" action="{% url 'pet_action' 'pet' %}">{% csrf_token %}<button class="action-button care" type="submit">Погладить</button></form>
     <form method="post" action="{% url 'pet_action' 'walk' %}">{% csrf_token %}<button class="action-button walk" type="submit">Гулять</button></form>
+</section>
+<section class="quick-grid">
+    <a class="button ghost" href="{% url 'inventory' %}">Инвентарь</a>
+    <a class="button ghost" href="{% url 'training' %}">Тренировки</a>
+    <a class="button ghost" href="{% url 'shows' %}">Выставки</a>
+    <a class="button ghost" href="{% url 'quests' %}">Задания</a>
 </section>
 {% endif %}
 
@@ -61,6 +70,15 @@
             </div>
         {% endfor %}
     </div>
+</section>
+
+<section class="panel">
+    <div class="section-head">
+        <h2>Статус мира</h2>
+        <a href="{% url 'chat' %}">Чат</a>
+    </div>
+    <div class="quest-line"><span>Игроков онлайн</span><strong>{{ online_count }}</strong></div>
+    <div class="quest-line"><span>Сердечки</span><strong>{{ profile.hearts }}</strong></div>
 </section>
 
 <section class="panel">

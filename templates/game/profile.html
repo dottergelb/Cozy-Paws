@@ -10,8 +10,10 @@
     {% if profile.bio %}<p class="muted">{{ profile.bio }}</p>{% endif %}
     <div class="stat-grid">
         <div><span>Монеты</span><strong>{{ profile.coins }}</strong></div>
+        <div><span>Сердечки</span><strong>{{ profile.hearts }}</strong></div>
         <div><span>Питомцы</span><strong>{{ pets|length }}</strong></div>
         <div><span>Предметы</span><strong>{{ inventory_count }}</strong></div>
+        <div><span>Гардероб</span><strong>{{ wearable_count }}</strong></div>
     </div>
 </section>
 <section class="panel">
@@ -19,8 +21,16 @@
     {% for pet in pets %}
         <div class="mini-pet">
             <span class="mini-face {{ pet.species }}"></span>
-            <div><strong>{{ pet.name }}</strong><span>{{ pet.get_species_display }} · уровень {{ pet.level }}</span></div>
+            <div><strong>{{ pet.name }}</strong><span>{{ pet.get_species_display }} · уровень {{ pet.level }} · красота {{ pet.beauty }}</span></div>
         </div>
+    {% endfor %}
+</section>
+<section class="panel">
+    <div class="section-head"><h2>Медали</h2><a href="{% url 'shows' %}">Выставки</a></div>
+    {% for medal in medals %}
+        <div class="quest-line"><span>{{ medal.medal }}</span><strong>{{ medal.total }}</strong></div>
+    {% empty %}
+        <p class="muted">Медалей пока нет.</p>
     {% endfor %}
 </section>
 <section class="panel">

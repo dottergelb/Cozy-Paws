@@ -2,7 +2,7 @@ from django import forms
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth.models import User
 
-from .models import Pet, PlayerProfile
+from .models import ChatMessage, Pet, PlayerProfile, PrivateMessage, SupportTicket, UserReport
 
 
 class RegisterForm(UserCreationForm):
@@ -38,3 +38,38 @@ class ProfileSettingsForm(forms.ModelForm):
             "display_name": forms.TextInput(attrs={"placeholder": "Как показывать имя в игре"}),
             "bio": forms.Textarea(attrs={"rows": 3, "placeholder": "Короткая заметка для профиля"}),
         }
+
+
+class ChatMessageForm(forms.ModelForm):
+    class Meta:
+        model = ChatMessage
+        fields = ("body",)
+        labels = {"body": "Сообщение"}
+        widgets = {"body": forms.TextInput(attrs={"maxlength": 240, "placeholder": "Короткое сообщение"})}
+
+
+class PrivateMessageForm(forms.ModelForm):
+    class Meta:
+        model = PrivateMessage
+        fields = ("body",)
+        labels = {"body": "Сообщение"}
+        widgets = {"body": forms.Textarea(attrs={"rows": 3, "maxlength": 500, "placeholder": "Текст сообщения"})}
+
+
+class SupportTicketForm(forms.ModelForm):
+    class Meta:
+        model = SupportTicket
+        fields = ("subject", "body")
+        labels = {"subject": "Тема", "body": "Описание"}
+        widgets = {
+            "subject": forms.TextInput(attrs={"maxlength": 120}),
+            "body": forms.Textarea(attrs={"rows": 4, "maxlength": 1000}),
+        }
+
+
+class UserReportForm(forms.ModelForm):
+    class Meta:
+        model = UserReport
+        fields = ("reason",)
+        labels = {"reason": "Причина"}
+        widgets = {"reason": forms.Textarea(attrs={"rows": 3, "maxlength": 240})}

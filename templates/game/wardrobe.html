@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}Гардероб - Cozy Paws{% endblock %}
+{% block content %}
+<section class="summary-row">
+    <div><span class="eyebrow">Гардероб</span><strong>{% if pet %}{{ pet.name }}{% else %}Нет питомца{% endif %}</strong></div>
+    <a class="button ghost compact" href="{% url 'wearable_shop' %}">Купить</a>
+</section>
+<section class="panel">
+    <div class="section-head"><h2>Надето</h2></div>
+    {% for entry in equipped %}
+        <div class="mini-pet">
+            <span class="item-dot" style="background: {{ entry.wearable.color }}"></span>
+            <div><strong>{{ entry.wearable.name }}</strong><span>{{ entry.wearable.get_slot_display }} · красота +{{ entry.wearable.beauty_bonus }}</span></div>
+            <form method="post" action="{% url 'unequip_wearable' entry.id %}">{% csrf_token %}<button class="mini-button" type="submit">Снять</button></form>
+        </div>
+    {% empty %}
+        <p class="muted">Пока ничего не надето.</p>
+    {% endfor %}
+</section>
+<section class="item-grid">
+    {% for entry in owned %}
+        <article class="item-card">
+            <div class="item-icon" style="background: {{ entry.wearable.color }}"><svg><use href="#i-bag"></use></svg></div>
+            <h2>{{ entry.wearable.name }}</h2>
+            <p>{{ entry.wearable.description }}</p>
+            <span class="quantity">x{{ entry.quantity }}</span>
+            <div class="effect-list">
+                <span>{{ entry.wearable.get_slot_display }}</span>
+                <span>Красота +{{ entry.wearable.beauty_bonus }}</span>
+                {% if entry.wearable.show_bonus %}<span>Показ +{{ entry.wearable.show_bonus }}</span>{% endif %}
+            </div>
+            <div class="two-actions">
+                <form method="post" action="{% url 'equip_wearable' entry.id %}">{% csrf_token %}<button class="button primary" type="submit">Надеть</button></form>
+                <form method="post" action="{% url 'sell_wearable' entry.id %}">{% csrf_token %}<button class="button ghost" type="submit">Продать</button></form>
+            </div>
+        </article>
+    {% empty %}
+        <section class="empty-state">
+            <h2>Гардероб пуст</h2>
+            <p>Купи одежду, чтобы повысить красоту и силу выступлений.</p>
+            <a class="button primary" href="{% url 'wearable_shop' %}">Открыть одежду</a>
+        </section>
+    {% endfor %}
+</section>
+{% endblock %}

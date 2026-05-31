@@ -5,6 +5,10 @@
     <div><span class="eyebrow">Инвентарь</span><strong>{% if pet %}Для {{ pet.name }}{% else %}Нет питомца{% endif %}</strong></div>
     <a class="button ghost compact" href="{% url 'shop' %}">Магазин</a>
 </section>
+<section class="quick-grid">
+    <a class="button ghost" href="{% url 'wardrobe' %}">Гардероб</a>
+    <a class="button ghost" href="{% url 'wearable_shop' %}">Одежда</a>
+</section>
 <section class="item-grid">
     {% for entry in inventory %}
         <article class="item-card">

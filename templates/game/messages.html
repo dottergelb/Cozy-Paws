@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block title %}Почта - Cozy Paws{% endblock %}
+{% block content %}
+<section class="summary-row">
+    <div><span class="eyebrow">Почта</span><strong>Личные сообщения</strong></div>
+    <a class="button ghost compact" href="{% url 'social' %}">Игроки</a>
+</section>
+<section class="panel">
+    <div class="section-head"><h2>Входящие</h2></div>
+    {% for message in inbox %}
+        <div class="log-line">
+            <span>{{ message.created_at|date:"d.m H:i" }} · {{ message.sender.public_name }}</span>
+            <strong>{{ message.body }}</strong>
+        </div>
+    {% empty %}
+        <p class="muted">Сообщений нет.</p>
+    {% endfor %}
+</section>
+<section class="panel">
+    <div class="section-head"><h2>Отправленные</h2></div>
+    {% for message in outbox %}
+        <div class="log-line">
+            <span>{{ message.created_at|date:"d.m H:i" }} · {{ message.recipient.public_name }}</span>
+            <strong>{{ message.body }}</strong>
+        </div>
+    {% empty %}
+        <p class="muted">Отправленных сообщений нет.</p>
+    {% endfor %}
+</section>
+{% endblock %}

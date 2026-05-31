@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}Одежда - Cozy Paws{% endblock %}
+{% block content %}
+<section class="summary-row">
+    <div><span class="eyebrow">Магазин одежды</span><strong>Внешность и бонусы</strong></div>
+    <div class="coins"><svg><use href="#i-coin"></use></svg>{{ profile.coins }}</div>
+</section>
+<section class="quick-grid">
+    <a class="button ghost" href="{% url 'shop' %}">Предметы</a>
+    <a class="button ghost" href="{% url 'wardrobe' %}">Гардероб</a>
+</section>
+<section class="item-grid">
+    {% for wearable in wearables %}
+        <article class="item-card">
+            <div class="item-icon" style="background: {{ wearable.color }}"><svg><use href="#i-star"></use></svg></div>
+            <h2>{{ wearable.name }}</h2>
+            <p>{{ wearable.description }}</p>
+            <div class="effect-list">
+                <span>{{ wearable.get_slot_display }}</span>
+                <span>Красота +{{ wearable.beauty_bonus }}</span>
+                {% if wearable.mood_bonus %}<span>Настроение +{{ wearable.mood_bonus }}</span>{% endif %}
+                {% if wearable.show_bonus %}<span>Показ +{{ wearable.show_bonus }}</span>{% endif %}
+            </div>
+            <form method="post" action="{% url 'buy_wearable' wearable.id %}">
+                {% csrf_token %}
+                <button class="button primary" type="submit">Купить за {{ wearable.price }}</button>
+            </form>
+        </article>
+    {% empty %}
+        <p class="muted">Одежда появится после seed-команды.</p>
+    {% endfor %}
+</section>
+{% endblock %}

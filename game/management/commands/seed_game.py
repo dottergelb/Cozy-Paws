@@ -1,7 +1,7 @@
 from django.contrib.auth.models import User
 from django.core.management.base import BaseCommand
 
-from game.models import Achievement, Item, Pet, PlayerProfile, Quest
+from game.models import Achievement, Item, Pet, PetShow, PlayerProfile, Quest, WearableItem
 
 
 class Command(BaseCommand):
@@ -18,6 +18,8 @@ class Command(BaseCommand):
                 "mood_delta": 2,
                 "hunger_delta": 28,
                 "experience_delta": 4,
+                "beauty_delta": 1,
+                "hearts_delta": 1,
                 "icon": "food",
             },
             {
@@ -29,6 +31,8 @@ class Command(BaseCommand):
                 "mood_delta": 24,
                 "hunger_delta": -4,
                 "experience_delta": 10,
+                "beauty_delta": 1,
+                "hearts_delta": 2,
                 "icon": "toy",
             },
             {
@@ -40,6 +44,8 @@ class Command(BaseCommand):
                 "mood_delta": 8,
                 "hunger_delta": 0,
                 "experience_delta": 3,
+                "beauty_delta": 0,
+                "hearts_delta": 1,
                 "icon": "care",
             },
             {
@@ -51,6 +57,8 @@ class Command(BaseCommand):
                 "mood_delta": 8,
                 "hunger_delta": 34,
                 "experience_delta": 12,
+                "beauty_delta": 2,
+                "hearts_delta": 3,
                 "icon": "food",
             },
         ]
@@ -98,9 +106,102 @@ class Command(BaseCommand):
                 "reward_coins": 15,
                 "reward_experience": 5,
             },
+            {
+                "title": "Тихая тренировка",
+                "description": "Проведи любую тренировку питомца.",
+                "action": Quest.TRAIN,
+                "target_count": 1,
+                "reward_coins": 22,
+                "reward_experience": 8,
+            },
+            {
+                "title": "Показ талантов",
+                "description": "Участвуй в любой выставке.",
+                "action": Quest.SHOW,
+                "target_count": 1,
+                "reward_coins": 28,
+                "reward_experience": 10,
+            },
         ]
         for data in quests:
             Quest.objects.update_or_create(title=data["title"], defaults={**data, "active": True})
+
+        wearables = [
+            {
+                "name": "Листовой венок",
+                "description": "Легкий природный аксессуар для прогулок.",
+                "slot": WearableItem.HAT,
+                "price": 45,
+                "beauty_bonus": 8,
+                "mood_bonus": 3,
+                "show_bonus": 2,
+                "color": "#45b08c",
+            },
+            {
+                "name": "Лунный ошейник",
+                "description": "Аккуратная вещь для спокойного питомца.",
+                "slot": WearableItem.COLLAR,
+                "price": 60,
+                "beauty_bonus": 10,
+                "mood_bonus": 2,
+                "show_bonus": 4,
+                "color": "#75a7e6",
+            },
+            {
+                "name": "Праздничный плащ",
+                "description": "Наряд для первых выставок.",
+                "slot": WearableItem.OUTFIT,
+                "price": 80,
+                "beauty_bonus": 16,
+                "mood_bonus": 4,
+                "show_bonus": 8,
+                "color": "#9b8ee8",
+            },
+            {
+                "name": "Солнечный талисман",
+                "description": "Маленький бонус к выступлениям.",
+                "slot": WearableItem.CHARM,
+                "price": 70,
+                "beauty_bonus": 7,
+                "mood_bonus": 1,
+                "show_bonus": 10,
+                "color": "#f3b84b",
+            },
+        ]
+        for data in wearables:
+            WearableItem.objects.update_or_create(name=data["name"], defaults=data)
+
+        shows = [
+            {
+                "name": "Домашний смотр",
+                "description": "Небольшая выставка для начинающих питомцев.",
+                "min_level": 1,
+                "entry_fee": 10,
+                "reward_coins": 18,
+                "reward_hearts": 3,
+                "reward_experience": 8,
+            },
+            {
+                "name": "Городской подиум",
+                "description": "Соревнование для подготовленных питомцев.",
+                "min_level": 2,
+                "entry_fee": 25,
+                "reward_coins": 36,
+                "reward_hearts": 6,
+                "reward_experience": 16,
+            },
+            {
+                "name": "Большой финал",
+                "description": "Серьезная выставка для опытных команд.",
+                "min_level": 4,
+                "entry_fee": 60,
+                "reward_coins": 80,
+                "reward_hearts": 12,
+                "reward_experience": 28,
+            },
+        ]
+        for data in shows:
+            PetShow.objects.update_or_create(name=data["name"], defaults={**data, "active": True})
 
         achievements = [
             {

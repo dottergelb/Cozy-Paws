@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title %}Тренировки - Cozy Paws{% endblock %}
+{% block content %}
+<section class="summary-row">
+    <div><span class="eyebrow">Тренировки</span><strong>{% if pet %}{{ pet.name }}{% else %}Нет питомца{% endif %}</strong></div>
+    <a class="button ghost compact" href="{% url 'shows' %}">Выставки</a>
+</section>
+{% if pet %}
+<section class="stat-grid">
+    <div><span>Ловкость</span><strong>{{ pet.agility }}</strong></div>
+    <div><span>Послушание</span><strong>{{ pet.obedience }}</strong></div>
+    <div><span>Шарм</span><strong>{{ pet.charm }}</strong></div>
+</section>
+<section class="action-grid">
+    <form method="post" action="{% url 'train_pet' 'agility' %}">{% csrf_token %}<button class="action-button play" type="submit">Ловкость</button></form>
+    <form method="post" action="{% url 'train_pet' 'obedience' %}">{% csrf_token %}<button class="action-button care" type="submit">Послушание</button></form>
+    <form method="post" action="{% url 'train_pet' 'charm' %}">{% csrf_token %}<button class="action-button walk" type="submit">Шарм</button></form>
+</section>
+{% endif %}
+{% endblock %}

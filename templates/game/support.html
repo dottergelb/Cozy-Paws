@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}Поддержка - Cozy Paws{% endblock %}
+{% block content %}
+<section class="auth-card">
+    <h1>Поддержка</h1>
+    <form method="post" class="stack-form">
+        {% csrf_token %}
+        {{ form.as_p }}
+        <button class="button primary" type="submit">Создать</button>
+    </form>
+</section>
+<section class="panel">
+    <div class="section-head"><h2>Мои обращения</h2></div>
+    {% for ticket in tickets %}
+        <div class="log-line">
+            <span>{{ ticket.created_at|date:"d.m H:i" }} · {{ ticket.get_status_display }}</span>
+            <strong>{{ ticket.subject }}</strong>
+        </div>
+    {% empty %}
+        <p class="muted">Обращений пока нет.</p>
+    {% endfor %}
+</section>
+{% endblock %}

@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}Чат - Cozy Paws{% endblock %}
+{% block content %}
+<section class="auth-card">
+    <h1>Чат</h1>
+    <form method="post" class="stack-form">
+        {% csrf_token %}
+        {{ form.as_p }}
+        <button class="button primary" type="submit">Отправить</button>
+    </form>
+</section>
+<section class="panel">
+    <div class="section-head"><h2>Сообщения</h2><a href="{% url 'social' %}">Соц</a></div>
+    {% for message in chat_messages %}
+        <div class="log-line">
+            <span>{{ message.created_at|date:"H:i" }} · {{ message.profile.public_name }}</span>
+            <strong>{{ message.body }}</strong>
+            <a class="mini-link" href="{% url 'report_chat_message' message.id %}">Пожаловаться</a>
+        </div>
+    {% empty %}
+        <p class="muted">Сообщений пока нет.</p>
+    {% endfor %}
+</section>
+{% endblock %}

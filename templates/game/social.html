@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block title %}Социальное - Cozy Paws{% endblock %}
+{% block content %}
+<section class="summary-row">
+    <div><span class="eyebrow">Социальное</span><strong>Онлайн {{ online_count }}</strong></div>
+    <a class="button ghost compact" href="{% url 'chat' %}">Чат</a>
+</section>
+<section class="quick-grid">
+    <a class="button ghost" href="{% url 'messages_inbox' %}">Почта</a>
+    <a class="button ghost" href="{% url 'support' %}">Поддержка</a>
+    <a class="button ghost" href="{% url 'rating' %}">Рейтинг</a>
+    <a class="button ghost" href="{% url 'profile' %}">Профиль</a>
+</section>
+<section class="panel">
+    <div class="section-head"><h2>Заявки</h2></div>
+    {% for friendship in incoming %}
+        <div class="mini-pet">
+            <span class="rank">{{ forloop.counter }}</span>
+            <div><strong>{{ friendship.from_profile.public_name }}</strong><span>Хочет дружить</span></div>
+            <form method="post" action="{% url 'accept_friend_request' friendship.id %}">{% csrf_token %}<button class="mini-button" type="submit">Принять</button></form>
+        </div>
+    {% empty %}
+        <p class="muted">Новых заявок нет.</p>
+    {% endfor %}
+</section>
+<section class="panel">
+    <div class="section-head"><h2>Игроки</h2></div>
+    {% for other in players %}
+        <div class="mini-pet">
+            <span class="rank">{{ forloop.counter }}</span>
+            <div><strong>{{ other.public_name }}</strong><span>{{ other.user.username }}</span></div>
+            <div class="inline-actions">
+                <form method="post" action="{% url 'send_friend_request' other.id %}">{% csrf_token %}<button class="mini-button" type="submit">Друг</button></form>
+                <a class="mini-link" href="{% url 'send_message' other.id %}">Письмо</a>
+            </div>
+        </div>
+    {% empty %}
+        <p class="muted">Других игроков пока нет.</p>
+    {% endfor %}
+</section>
+{% endblock %}

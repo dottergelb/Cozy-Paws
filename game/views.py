@@ -2,13 +2,34 @@ from django.contrib import messages
 from django.contrib.auth import login
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
-from django.db.models import Count, Max, Sum
+from django.db.models import Count, Max, Q, Sum
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 
-from .forms import PetForm, ProfileSettingsForm, RegisterForm
-from .models import ActionLog, Achievement, InventoryItem, Item, Pet, PlayerAchievement, PlayerProfile, Quest, QuestProgress
+from .forms import ChatMessageForm, PetForm, PrivateMessageForm, ProfileSettingsForm, RegisterForm, SupportTicketForm, UserReportForm
+from .models import (
+    ActionCooldown,
+    ActionLog,
+    Achievement,
+    ChatMessage,
+    EquippedWearable,
+    Friendship,
+    InventoryItem,
+    Item,
+    OwnedWearable,
+    Pet,
+    PetShow,
+    PlayerAchievement,
+    PlayerProfile,
+    PrivateMessage,
+    Quest,
+    QuestProgress,
+    ShowEntry,
+    SupportTicket,
+    UserReport,
+    WearableItem,
+)
 
 
 ACTION_RULES = {
@@ -54,10 +75,56 @@ ACTION_RULES = {
     },
 }
 
+COOLDOWNS = {
+    "pet_action": 8,
+    "buy_item": 2,
+    "claim_quest": 2,
+    "train": 20,
+    "show": 30,
+    "chat": 10,
+    "message": 10,
+    "support": 60,
+}
+
 
 def get_profile(user):
     profile, _created = PlayerProfile.objects.get_or_create(user=user)
+    profile.last_activity_at = timezone.now()
+    profile.save(update_fields=["last_activity_at"])
     return profile
+
+
+def online_count():
+    cutoff = timezone.now() - timezone.timedelta(minutes=5)
+    return PlayerProfile.objects.filter(last_activity_at__gte=cutoff).count()
+
+
+def set_cooldown(profile, key, seconds):
+    ActionCooldown.objects.update_or_create(
+        profile=profile,
+        key=key,
+        defaults={"available_at": timezone.now() + timezone.timedelta(seconds=seconds)},
+    )
+
+
+def cooldown_seconds(profile, key):
+    cooldown = ActionCooldown.objects.filter(profile=profile, key=key).first()
+    if not cooldown:
+        return 0
+    remaining = int((cooldown.available_at - timezone.now()).total_seconds())
+    if remaining <= 0:
+        cooldown.delete()
+        return 0
+    return remaining
+
+
+def enforce_cooldown(request, profile, key):
+    remaining = cooldown_seconds(profile, key)
+    if remaining:
+        messages.error(request, f"Слишком быстро. Повтори действие через {remaining} сек.")
+        return False
+    set_cooldown(profile, key, COOLDOWNS[key])
+    return True
 
 
 def restore_energy(profile):
@@ -176,6 +243,8 @@ def dashboard(request):
         "quest_progress": sync_daily_quests(profile)[:3],
         "logs": profile.logs.select_related("pet")[:5],
         "achievements": profile.achievements.select_related("achievement")[:4],
+        "equipped": pet.equipped_wearables.select_related("wearable") if pet else [],
+        "online_count": online_count(),
         "actions": ACTION_RULES,
     }
     check_passive_achievements(request, profile)
@@ -193,8 +262,10 @@ def profile(request):
             "profile": profile_obj,
             "pets": request.user.pets.order_by("-active", "-level", "name"),
             "inventory_count": profile_obj.inventory.aggregate(total=Sum("quantity"))["total"] or 0,
+            "wearable_count": profile_obj.wardrobe.aggregate(total=Sum("quantity"))["total"] or 0,
             "achievements": profile_obj.achievements.select_related("achievement"),
             "logs": profile_obj.logs.select_related("pet")[:12],
+            "medals": profile_obj.show_entries.values("medal").annotate(total=Count("id")),
         },
     )
 
@@ -247,6 +318,8 @@ def pet_action(request, action):
     if not rule or not pet:
         messages.error(request, "Это действие сейчас недоступно.")
         return redirect("dashboard")
+    if not enforce_cooldown(request, profile_obj, "pet_action"):
+        return redirect("dashboard")
     required_energy = rule["requires"].get("energy", 0)
     if pet.energy < required_energy:
         messages.error(request, "Питомцу не хватает энергии. Попробуй еду или заботу из инвентаря.")
@@ -259,19 +332,25 @@ def pet_action(request, action):
     pet.add_experience(rule["experience"])
     pet.save()
     profile_obj.coins += rule["coins"]
+    profile_obj.hearts += 1
     profile_obj.save(update_fields=["coins"])
     add_quest_progress(profile_obj, rule["quest"])
     log_action(profile_obj, f"Действие с питомцем: {rule['label']} {pet.name}.", pet)
     if action == "feed":
         award_achievement(request, profile_obj, Achievement.FIRST_FEED)
     check_passive_achievements(request, profile_obj)
-    messages.success(request, f"Ты {rule['label']} {pet.name}: +{rule['experience']} опыта, +{rule['coins']} монет.")
+    profile_obj.save(update_fields=["coins", "hearts"])
+    messages.success(request, f"Ты {rule['label']} {pet.name}: +{rule['experience']} опыта, +{rule['coins']} монет, +1 сердечко.")
     return redirect("dashboard")
 
 
 @login_required
 def shop(request):
-    return render(request, "game/shop.html", {"profile": get_profile(request.user), "items": Item.objects.order_by("price", "name")})
+    return render(
+        request,
+        "game/shop.html",
+        {"profile": get_profile(request.user), "items": Item.objects.order_by("item_type", "price", "name")},
+    )
 
 
 @login_required
@@ -279,6 +358,8 @@ def buy_item(request, item_id):
     if request.method != "POST":
         return redirect("shop")
     profile_obj = get_profile(request.user)
+    if not enforce_cooldown(request, profile_obj, "buy_item"):
+        return redirect("shop")
     item = get_object_or_404(Item, id=item_id)
     if profile_obj.coins < item.price:
         messages.error(request, "Не хватает монет для покупки.")
@@ -323,13 +404,207 @@ def use_item(request, inventory_id):
     item = inventory_item.item
     pet.change_stats(energy=item.energy_delta, mood=item.mood_delta, hunger=item.hunger_delta)
     pet.add_experience(item.experience_delta)
+    pet.beauty += item.beauty_delta
     pet.save()
+    profile_obj.hearts += item.hearts_delta
+    profile_obj.save(update_fields=["hearts"])
     inventory_item.quantity -= 1
     inventory_item.save(update_fields=["quantity"])
     log_action(profile_obj, f"{pet.name} использует предмет: {item.name}.", pet)
     check_passive_achievements(request, profile_obj)
     messages.success(request, f"{pet.name} использует {item.name}: эффект применен.")
     return redirect("inventory")
+
+
+@login_required
+def wearable_shop(request):
+    profile_obj = get_profile(request.user)
+    return render(
+        request,
+        "game/wearable_shop.html",
+        {"profile": profile_obj, "wearables": WearableItem.objects.order_by("slot", "price", "name")},
+    )
+
+
+@login_required
+def buy_wearable(request, wearable_id):
+    if request.method != "POST":
+        return redirect("wearable_shop")
+    profile_obj = get_profile(request.user)
+    if not enforce_cooldown(request, profile_obj, "buy_item"):
+        return redirect("wearable_shop")
+    wearable = get_object_or_404(WearableItem, id=wearable_id)
+    if profile_obj.coins < wearable.price:
+        messages.error(request, "Не хватает монет для покупки.")
+        return redirect("wearable_shop")
+    profile_obj.coins -= wearable.price
+    profile_obj.save(update_fields=["coins"])
+    owned, _created = OwnedWearable.objects.get_or_create(profile=profile_obj, wearable=wearable)
+    if not _created:
+        owned.quantity += 1
+        owned.save(update_fields=["quantity"])
+    log_action(profile_obj, f"Куплен предмет гардероба: {wearable.name}.")
+    messages.success(request, f"{wearable.name} добавлен в гардероб.")
+    return redirect("wardrobe")
+
+
+@login_required
+def wardrobe(request):
+    profile_obj = get_profile(request.user)
+    pet = active_pet(request.user)
+    return render(
+        request,
+        "game/wardrobe.html",
+        {
+            "profile": profile_obj,
+            "pet": pet,
+            "owned": profile_obj.wardrobe.select_related("wearable").filter(quantity__gt=0),
+            "equipped": pet.equipped_wearables.select_related("wearable") if pet else [],
+        },
+    )
+
+
+@login_required
+def equip_wearable(request, owned_id):
+    if request.method != "POST":
+        return redirect("wardrobe")
+    profile_obj = get_profile(request.user)
+    owned = get_object_or_404(OwnedWearable, id=owned_id, profile=profile_obj, quantity__gt=0)
+    pet = active_pet(request.user)
+    if not pet:
+        messages.error(request, "Сначала создай питомца.")
+        return redirect("create_pet")
+    EquippedWearable.objects.filter(pet=pet, wearable__slot=owned.wearable.slot).delete()
+    EquippedWearable.objects.create(pet=pet, wearable=owned.wearable)
+    pet.change_stats(mood=owned.wearable.mood_bonus)
+    pet.save(update_fields=["mood"])
+    log_action(profile_obj, f"{pet.name} надел {owned.wearable.name}.", pet)
+    messages.success(request, f"{owned.wearable.name} надет.")
+    return redirect("wardrobe")
+
+
+@login_required
+def unequip_wearable(request, equipped_id):
+    if request.method != "POST":
+        return redirect("wardrobe")
+    profile_obj = get_profile(request.user)
+    equipped = get_object_or_404(EquippedWearable, id=equipped_id, pet__owner=request.user)
+    name = equipped.wearable.name
+    equipped.delete()
+    log_action(profile_obj, f"Снят предмет гардероба: {name}.")
+    messages.success(request, f"{name} снят.")
+    return redirect("wardrobe")
+
+
+@login_required
+def sell_wearable(request, owned_id):
+    if request.method != "POST":
+        return redirect("wardrobe")
+    profile_obj = get_profile(request.user)
+    owned = get_object_or_404(OwnedWearable, id=owned_id, profile=profile_obj, quantity__gt=0)
+    EquippedWearable.objects.filter(pet__owner=request.user, wearable=owned.wearable).delete()
+    sale_price = max(1, owned.wearable.price // 2)
+    profile_obj.coins += sale_price
+    profile_obj.save(update_fields=["coins"])
+    owned.quantity -= 1
+    owned.save(update_fields=["quantity"])
+    log_action(profile_obj, f"Продан предмет гардероба: {owned.wearable.name}.")
+    messages.success(request, f"Продано за {sale_price} монет.")
+    return redirect("wardrobe")
+
+
+@login_required
+def training(request):
+    profile_obj = get_profile(request.user)
+    return render(request, "game/training.html", {"profile": profile_obj, "pet": active_pet(request.user)})
+
+
+@login_required
+def train_pet(request, trait):
+    if request.method != "POST":
+        return redirect("training")
+    profile_obj = get_profile(request.user)
+    pet = active_pet(request.user)
+    if not pet:
+        messages.error(request, "Сначала создай питомца.")
+        return redirect("create_pet")
+    if trait not in {"agility", "obedience", "charm"}:
+        messages.error(request, "Такой тренировки нет.")
+        return redirect("training")
+    if not enforce_cooldown(request, profile_obj, "train"):
+        return redirect("training")
+    if pet.energy < 12:
+        messages.error(request, "Для тренировки не хватает энергии.")
+        return redirect("training")
+    setattr(pet, trait, getattr(pet, trait) + 1)
+    pet.change_stats(energy=-12, mood=4, hunger=-4)
+    pet.add_experience(7)
+    pet.save()
+    profile_obj.hearts += 2
+    profile_obj.save(update_fields=["hearts"])
+    add_quest_progress(profile_obj, Quest.TRAIN)
+    log_action(profile_obj, f"{pet.name} прошел тренировку.", pet)
+    messages.success(request, "Тренировка завершена: +1 к навыку, +7 опыта, +2 сердечка.")
+    return redirect("training")
+
+
+@login_required
+def shows(request):
+    profile_obj = get_profile(request.user)
+    return render(
+        request,
+        "game/shows.html",
+        {
+            "profile": profile_obj,
+            "pet": active_pet(request.user),
+            "shows": PetShow.objects.filter(active=True).order_by("min_level", "entry_fee"),
+            "entries": profile_obj.show_entries.select_related("show", "pet")[:10],
+        },
+    )
+
+
+@login_required
+def enter_show(request, show_id):
+    if request.method != "POST":
+        return redirect("shows")
+    profile_obj = get_profile(request.user)
+    pet = active_pet(request.user)
+    show = get_object_or_404(PetShow, id=show_id, active=True)
+    if not pet:
+        messages.error(request, "Сначала создай питомца.")
+        return redirect("create_pet")
+    if not enforce_cooldown(request, profile_obj, "show"):
+        return redirect("shows")
+    if pet.level < show.min_level:
+        messages.error(request, "Уровень питомца слишком низкий для этой выставки.")
+        return redirect("shows")
+    if profile_obj.coins < show.entry_fee:
+        messages.error(request, "Не хватает монет на взнос.")
+        return redirect("shows")
+    profile_obj.coins -= show.entry_fee
+    score = pet.show_power + min(20, pet.mood // 5) + min(20, pet.energy // 5)
+    if score >= 80:
+        medal = ShowEntry.GOLD
+        multiplier = 3
+    elif score >= 55:
+        medal = ShowEntry.SILVER
+        multiplier = 2
+    else:
+        medal = ShowEntry.BRONZE
+        multiplier = 1
+    ShowEntry.objects.create(show=show, profile=profile_obj, pet=pet, score=score, medal=medal)
+    reward_coins = show.reward_coins * multiplier
+    reward_hearts = show.reward_hearts * multiplier
+    profile_obj.coins += reward_coins
+    profile_obj.hearts += reward_hearts
+    profile_obj.save(update_fields=["coins", "hearts"])
+    pet.add_experience(show.reward_experience * multiplier)
+    pet.change_stats(energy=-10, mood=8)
+    pet.save()
+    add_quest_progress(profile_obj, Quest.SHOW)
+    log_action(profile_obj, f"{pet.name} выступил на выставке «{show.name}» и получил {medal}.", pet)
+    messages.success(request, f"Выставка завершена: {score} очков, медаль {medal}, +{reward_coins} монет.")
+    return redirect("shows")
 
 
 @login_required
@@ -343,6 +618,8 @@ def claim_quest(request, progress_id):
     if request.method != "POST":
         return redirect("quests")
     profile_obj = get_profile(request.user)
+    if not enforce_cooldown(request, profile_obj, "claim_quest"):
+        return redirect("quests")
     progress = get_object_or_404(QuestProgress, id=progress_id, profile=profile_obj)
     pet = active_pet(request.user)
     if not progress.completed:
@@ -362,6 +639,142 @@ def claim_quest(request, progress_id):
     check_passive_achievements(request, profile_obj)
     messages.success(request, f"Награда получена: +{progress.quest.reward_coins} монет.")
     return redirect("quests")
+
+
+@login_required
+def social(request):
+    profile_obj = get_profile(request.user)
+    friends = Friendship.objects.filter(
+        Q(from_profile=profile_obj) | Q(to_profile=profile_obj),
+        status=Friendship.ACCEPTED,
+    ).select_related("from_profile__user", "to_profile__user")
+    incoming = profile_obj.received_friendships.filter(status=Friendship.PENDING).select_related("from_profile__user")
+    players = PlayerProfile.objects.exclude(id=profile_obj.id).select_related("user").order_by("user__username")[:25]
+    return render(
+        request,
+        "game/social.html",
+        {"profile": profile_obj, "players": players, "friends": friends, "incoming": incoming, "online_count": online_count()},
+    )
+
+
+@login_required
+def send_friend_request(request, profile_id):
+    if request.method != "POST":
+        return redirect("social")
+    profile_obj = get_profile(request.user)
+    target = get_object_or_404(PlayerProfile, id=profile_id)
+    if target == profile_obj:
+        messages.error(request, "Нельзя добавить себя.")
+        return redirect("social")
+    Friendship.objects.get_or_create(from_profile=profile_obj, to_profile=target)
+    messages.success(request, "Заявка отправлена.")
+    return redirect("social")
+
+
+@login_required
+def accept_friend_request(request, friendship_id):
+    if request.method != "POST":
+        return redirect("social")
+    profile_obj = get_profile(request.user)
+    friendship = get_object_or_404(Friendship, id=friendship_id, to_profile=profile_obj, status=Friendship.PENDING)
+    friendship.status = Friendship.ACCEPTED
+    friendship.save(update_fields=["status", "updated_at"])
+    messages.success(request, "Заявка принята.")
+    return redirect("social")
+
+
+@login_required
+def block_profile(request, profile_id):
+    if request.method != "POST":
+        return redirect("social")
+    profile_obj = get_profile(request.user)
+    target = get_object_or_404(PlayerProfile, id=profile_id)
+    Friendship.objects.update_or_create(from_profile=profile_obj, to_profile=target, defaults={"status": Friendship.BLOCKED})
+    messages.success(request, "Игрок заблокирован.")
+    return redirect("social")
+
+
+@login_required
+def messages_inbox(request):
+    profile_obj = get_profile(request.user)
+    inbox = profile_obj.received_messages.select_related("sender__user")
+    outbox = profile_obj.sent_messages.select_related("recipient__user")[:10]
+    return render(request, "game/messages.html", {"profile": profile_obj, "inbox": inbox, "outbox": outbox})
+
+
+@login_required
+def send_message(request, profile_id):
+    profile_obj = get_profile(request.user)
+    target = get_object_or_404(PlayerProfile, id=profile_id)
+    form = PrivateMessageForm(request.POST or None)
+    if request.method == "POST" and form.is_valid():
+        if not enforce_cooldown(request, profile_obj, "message"):
+            return redirect("send_message", profile_id=profile_id)
+        message = form.save(commit=False)
+        message.sender = profile_obj
+        message.recipient = target
+        message.save()
+        messages.success(request, "Сообщение отправлено.")
+        return redirect("messages_inbox")
+    return render(request, "game/send_message.html", {"profile": profile_obj, "target": target, "form": form})
+
+
+@login_required
+def chat(request):
+    profile_obj = get_profile(request.user)
+    form = ChatMessageForm(request.POST or None)
+    if request.method == "POST" and form.is_valid():
+        if not enforce_cooldown(request, profile_obj, "chat"):
+            return redirect("chat")
+        message = form.save(commit=False)
+        message.profile = profile_obj
+        message.save()
+        messages.success(request, "Сообщение опубликовано.")
+        return redirect("chat")
+    return render(
+        request,
+        "game/chat.html",
+        {
+            "profile": profile_obj,
+            "form": form,
+            "chat_messages": ChatMessage.objects.filter(hidden=False).select_related("profile__user")[:40],
+        },
+    )
+
+
+@login_required
+def report_chat_message(request, message_id):
+    profile_obj = get_profile(request.user)
+    chat_message = get_object_or_404(ChatMessage, id=message_id)
+    form = UserReportForm(request.POST or None)
+    if request.method == "POST" and form.is_valid():
+        report = form.save(commit=False)
+        report.reporter = profile_obj
+        report.reported_profile = chat_message.profile
+        report.chat_message = chat_message
+        report.save()
+        messages.success(request, "Жалоба отправлена модераторам.")
+        return redirect("chat")
+    return render(request, "game/report.html", {"form": form, "chat_message": chat_message})
+
+
+@login_required
+def support(request):
+    profile_obj = get_profile(request.user)
+    form = SupportTicketForm(request.POST or None)
+    if request.method == "POST" and form.is_valid():
+        if not enforce_cooldown(request, profile_obj, "support"):
+            return redirect("support")
+        ticket = form.save(commit=False)
+        ticket.profile = profile_obj
+        ticket.save()
+        messages.success(request, "Обращение создано.")
+        return redirect("support")
+    return render(
+        request,
+        "game/support.html",
+        {"profile": profile_obj, "form": form, "tickets": profile_obj.support_tickets.order_by("-created_at")},
+    )
 
 
 def rating(request):

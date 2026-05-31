@@ -10,10 +10,18 @@ Cozy Paws is an original Django browser game about virtual pets. It does not use
 - virtual pets with level, experience, energy, mood, and hunger;
 - pet actions: feed, play, pet, walk;
 - passive energy recovery;
+- anti-spam cooldowns for active actions;
+- beauty, agility, obedience, and charm pet stats;
+- hearts as a second non-premium currency;
 - coins and item economy;
 - shop and inventory;
+- wardrobe, wearable shop, equip/unequip/sell flow;
+- training actions;
+- pet shows with entry fees, scores, medals, and rewards;
 - daily quests and rewards;
 - achievements and action history;
+- friends, private messages, global chat, reports, and support tickets;
+- online presence counter;
 - player rating;
 - Django admin;
 - seed command for demo content;
