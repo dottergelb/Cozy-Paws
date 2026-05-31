@@ -56,6 +56,7 @@ DJANGO_SECRET_KEY=<long random secret>
 DJANGO_DEBUG=False
 DJANGO_ALLOWED_HOSTS=example.com,www.example.com
 DJANGO_CSRF_TRUSTED_ORIGINS=https://example.com,https://www.example.com
+DATABASE_URL=postgresql://cozypaws_user:<password>@<host>:5432/cozypaws
 ```
 
 Recommended production startup:
@@ -68,7 +69,23 @@ python manage.py seed_game
 gunicorn cozypaws.wsgi:application
 ```
 
-SQLite is used by default for local and simple deployments. For higher traffic production, configure a managed PostgreSQL database before launch.
+SQLite is used only as the local fallback when `DATABASE_URL` is not set. Production should use PostgreSQL through `DATABASE_URL`.
+
+Example local PostgreSQL setup:
+
+```sql
+CREATE DATABASE cozypaws;
+CREATE USER cozypaws_user WITH PASSWORD 'change-me';
+GRANT ALL PRIVILEGES ON DATABASE cozypaws TO cozypaws_user;
+```
+
+Then set:
+
+```powershell
+$env:DATABASE_URL="postgresql://cozypaws_user:change-me@localhost:5432/cozypaws"
+python manage.py migrate
+python manage.py seed_game
+```
 
 ## Admin
 
