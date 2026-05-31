@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}Инвентарь - Cozy Paws{% endblock %}
+{% block content %}
+<section class="summary-row">
+    <div><span class="eyebrow">Инвентарь</span><strong>{% if pet %}Для {{ pet.name }}{% else %}Нет питомца{% endif %}</strong></div>
+    <a class="button ghost compact" href="{% url 'shop' %}">Магазин</a>
+</section>
+<section class="item-grid">
+    {% for entry in inventory %}
+        <article class="item-card">
+            <div class="item-icon {{ entry.item.icon }}"><svg><use href="#i-bag"></use></svg></div>
+            <h2>{{ entry.item.name }}</h2>
+            <p>{{ entry.item.description }}</p>
+            <span class="quantity">x{{ entry.quantity }}</span>
+            <form method="post" action="{% url 'use_item' entry.id %}">
+                {% csrf_token %}
+                <button class="button primary" type="submit">Использовать</button>
+            </form>
+        </article>
+    {% empty %}
+        <section class="empty-state">
+            <h2>Сумка пустая</h2>
+            <p>Загляни в магазин и купи еду, игрушки или предметы ухода.</p>
+            <a class="button primary" href="{% url 'shop' %}">Открыть магазин</a>
+        </section>
+    {% endfor %}
+</section>
+{% endblock %}

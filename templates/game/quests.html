@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}Задания - Cozy Paws{% endblock %}
+{% block content %}
+<section class="summary-row">
+    <div><span class="eyebrow">Ежедневные задания</span><strong>Награды обновляются каждый день</strong></div>
+    <div class="coins"><svg><use href="#i-coin"></use></svg>{{ profile.coins }}</div>
+</section>
+<section class="quest-stack">
+    {% for progress in quest_progress %}
+        <article class="quest-card">
+            <div class="section-head">
+                <div>
+                    <h2>{{ progress.quest.title }}</h2>
+                    <p>{{ progress.quest.description }}</p>
+                </div>
+                <strong>{{ progress.count }}/{{ progress.quest.target_count }}</strong>
+            </div>
+            <div class="bar"><span style="width: {{ progress.percent }}%"></span></div>
+            <div class="reward-row">
+                <span>+{{ progress.quest.reward_coins }} монет{% if progress.quest.reward_experience %}, +{{ progress.quest.reward_experience }} опыта{% endif %}</span>
+                <form method="post" action="{% url 'claim_quest' progress.id %}">
+                    {% csrf_token %}
+                    <button class="button compact {% if progress.completed and not progress.claimed %}primary{% else %}disabled{% endif %}" type="submit" {% if not progress.completed or progress.claimed %}disabled{% endif %}>
+                        {% if progress.claimed %}Получено{% else %}Забрать{% endif %}
+                    </button>
+                </form>
+            </div>
+        </article>
+    {% empty %}
+        <p class="muted">Заданий пока нет. Запусти seed-команду.</p>
+    {% endfor %}
+</section>
+{% endblock %}

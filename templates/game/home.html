@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}Cozy Paws - игра про питомцев{% endblock %}
+{% block content %}
+<section class="hero">
+    <div class="hero-art" aria-hidden="true">
+        <div class="pet-orbit">
+            <span class="pet-face cat"></span>
+            <span class="pet-face dog"></span>
+            <span class="pet-face bunny"></span>
+        </div>
+    </div>
+    <h1>Cozy Paws</h1>
+    <p>Локальная браузерная игра про заботу, маленькие победы и питомцев, которые растут вместе с игроком.</p>
+    <div class="hero-actions">
+        <a class="button primary" href="{% url 'register' %}">Начать игру</a>
+        <a class="button ghost" href="{% url 'rating' %}">Рейтинг</a>
+    </div>
+</section>
+<section class="feature-grid">
+    <article>
+        <svg><use href="#i-paw"></use></svg>
+        <h2>Питомцы</h2>
+        <p>Создавай питомцев, выбирай активного и улучшай его уровень.</p>
+    </article>
+    <article>
+        <svg><use href="#i-bag"></use></svg>
+        <h2>Предметы</h2>
+        <p>Покупай еду, игрушки и вещи для ухода в магазине.</p>
+    </article>
+    <article>
+        <svg><use href="#i-star"></use></svg>
+        <h2>Задания</h2>
+        <p>Выполняй ежедневные цели и забирай награды.</p>
+    </article>
+</section>
+{% endblock %}

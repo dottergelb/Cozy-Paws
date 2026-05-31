@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}Рейтинг - Cozy Paws{% endblock %}
+{% block content %}
+<section class="panel">
+    <div class="section-head">
+        <div>
+            <span class="eyebrow">Рейтинг</span>
+            <h1>Игроки</h1>
+        </div>
+        {% if user.is_authenticated %}<a href="{% url 'profile' %}">Профиль</a>{% endif %}
+    </div>
+    <div class="rating-list">
+        {% for player in players %}
+            <div class="rating-row">
+                <span class="rank">{{ forloop.counter }}</span>
+                <div>
+                    <strong>{{ player.profile.public_name }}</strong>
+                    <span>{{ player.pet_count }} питомцев · лучший уровень {{ player.best_level|default:0 }}</span>
+                </div>
+                <span class="coins"><svg><use href="#i-coin"></use></svg>{{ player.profile.coins }}</span>
+            </div>
+        {% empty %}
+            <p class="muted">Пока нет игроков.</p>
+        {% endfor %}
+    </div>
+</section>
+{% endblock %}

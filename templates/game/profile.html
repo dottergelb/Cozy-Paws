@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block title %}Профиль - Cozy Paws{% endblock %}
+{% block content %}
+<section class="panel profile-panel">
+    <span class="eyebrow">Профиль игрока</span>
+    <div class="section-head">
+        <h1>{{ profile.public_name }}</h1>
+        <a href="{% url 'settings' %}">Настройки</a>
+    </div>
+    {% if profile.bio %}<p class="muted">{{ profile.bio }}</p>{% endif %}
+    <div class="stat-grid">
+        <div><span>Монеты</span><strong>{{ profile.coins }}</strong></div>
+        <div><span>Питомцы</span><strong>{{ pets|length }}</strong></div>
+        <div><span>Предметы</span><strong>{{ inventory_count }}</strong></div>
+    </div>
+</section>
+<section class="panel">
+    <div class="section-head"><h2>Команда</h2><a href="{% url 'create_pet' %}">Добавить</a></div>
+    {% for pet in pets %}
+        <div class="mini-pet">
+            <span class="mini-face {{ pet.species }}"></span>
+            <div><strong>{{ pet.name }}</strong><span>{{ pet.get_species_display }} · уровень {{ pet.level }}</span></div>
+        </div>
+    {% endfor %}
+</section>
+<section class="panel">
+    <div class="section-head"><h2>Достижения</h2><span class="muted">{{ achievements|length }}</span></div>
+    <div class="badge-row">
+        {% for unlocked in achievements %}
+            <span class="badge">{{ unlocked.achievement.title }}</span>
+        {% empty %}
+            <p class="muted">Пока нет открытых достижений.</p>
+        {% endfor %}
+    </div>
+</section>
+<section class="panel">
+    <div class="section-head"><h2>История</h2></div>
+    <div class="log-list">
+        {% for log in logs %}
+            <div class="log-line">
+                <span>{{ log.created_at|date:"d.m H:i" }}</span>
+                <strong>{{ log.text }}</strong>
+            </div>
+        {% empty %}
+            <p class="muted">История действий пока пустая.</p>
+        {% endfor %}
+    </div>
+</section>
+{% endblock %}

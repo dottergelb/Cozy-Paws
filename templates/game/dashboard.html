@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+{% block title %}Питомец - Cozy Paws{% endblock %}
+{% block content %}
+<section class="summary-row">
+    <div>
+        <span class="eyebrow">Игрок</span>
+        <strong>{{ user.username }}</strong>
+    </div>
+    <div class="coins"><svg><use href="#i-coin"></use></svg>{{ profile.coins }}</div>
+</section>
+
+{% if pet %}
+<section class="pet-card">
+    <div class="pet-portrait {{ pet.species }}">
+        <span></span>
+    </div>
+    <div class="pet-title">
+        <div>
+            <span class="eyebrow">{{ pet.get_species_display }}</span>
+            <h1>{{ pet.name }}</h1>
+        </div>
+        <span class="level-pill">Ур. {{ pet.level }}</span>
+    </div>
+    <div class="xp">
+        <div class="xp-label"><span>Опыт</span><span>{{ pet.experience }}/{{ pet.next_level_experience }}</span></div>
+        <div class="bar"><span style="width: {{ pet.experience_percent }}%"></span></div>
+    </div>
+    <div class="stat-grid">
+        <div><span>Энергия</span><strong>{{ pet.energy }}</strong></div>
+        <div><span>Настроение</span><strong>{{ pet.mood }}</strong></div>
+        <div><span>Сытость</span><strong>{{ pet.hunger }}</strong></div>
+    </div>
+</section>
+
+<section class="action-grid">
+    <form method="post" action="{% url 'pet_action' 'feed' %}">{% csrf_token %}<button class="action-button food" type="submit">Покормить</button></form>
+    <form method="post" action="{% url 'pet_action' 'play' %}">{% csrf_token %}<button class="action-button play" type="submit">Поиграть</button></form>
+    <form method="post" action="{% url 'pet_action' 'pet' %}">{% csrf_token %}<button class="action-button care" type="submit">Погладить</button></form>
+    <form method="post" action="{% url 'pet_action' 'walk' %}">{% csrf_token %}<button class="action-button walk" type="submit">Гулять</button></form>
+</section>
+{% endif %}
+
+<section class="panel">
+    <div class="section-head">
+        <h2>Мои питомцы</h2>
+        <a href="{% url 'create_pet' %}">Добавить</a>
+    </div>
+    <div class="pet-list">
+        {% for owned_pet in pets %}
+            <div class="mini-pet">
+                <span class="mini-face {{ owned_pet.species }}"></span>
+                <div>
+                    <strong>{{ owned_pet.name }}</strong>
+                    <span>Уровень {{ owned_pet.level }}</span>
+                </div>
+                {% if owned_pet.active %}
+                    <span class="active-dot">Выбран</span>
+                {% else %}
+                    <a class="mini-link" href="{% url 'select_pet' owned_pet.id %}">Выбрать</a>
+                {% endif %}
+            </div>
+        {% endfor %}
+    </div>
+</section>
+
+<section class="panel">
+    <div class="section-head">
+        <h2>Сегодня</h2>
+        <a href="{% url 'quests' %}">Все</a>
+    </div>
+    {% for progress in quest_progress %}
+        <div class="quest-line">
+            <span>{{ progress.quest.title }}</span>
+            <strong>{{ progress.count }}/{{ progress.quest.target_count }}</strong>
+        </div>
+    {% empty %}
+        <p class="muted">Запусти seed-команду, чтобы добавить задания.</p>
+    {% endfor %}
+</section>
+
+<section class="panel">
+    <div class="section-head">
+        <h2>Достижения</h2>
+        <a href="{% url 'profile' %}">Все</a>
+    </div>
+    <div class="badge-row">
+        {% for unlocked in achievements %}
+            <span class="badge">{{ unlocked.achievement.title }}</span>
+        {% empty %}
+            <p class="muted">Первые достижения появятся после действий с питомцем.</p>
+        {% endfor %}
+    </div>
+</section>
+
+<section class="panel">
+    <div class="section-head">
+        <h2>Журнал</h2>
+        <a href="{% url 'profile' %}">История</a>
+    </div>
+    <div class="log-list">
+        {% for log in logs %}
+            <div class="log-line">
+                <span>{{ log.created_at|date:"H:i" }}</span>
+                <strong>{{ log.text }}</strong>
+            </div>
+        {% empty %}
+            <p class="muted">Здесь появятся игровые события.</p>
+        {% endfor %}
+    </div>
+</section>
+{% endblock %}
