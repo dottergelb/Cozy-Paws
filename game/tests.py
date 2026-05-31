@@ -25,6 +25,11 @@ class GameFlowTests(TestCase):
         self.assertEqual(response.status_code, 302)
         self.assertIn("/login/", response["Location"])
 
+    def test_health_endpoint(self):
+        response = self.client.get(reverse("health"))
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), {"status": "ok"})
+
     def test_pet_action_adds_rewards_and_progress(self):
         self.client.login(username="player", password="strong-pass-123")
         response = self.client.post(reverse("pet_action", args=["feed"]))
