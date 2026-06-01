@@ -53,6 +53,26 @@ On Windows you can run the local helper:
 .\run_local.ps1
 ```
 
+## Docker Run
+
+```powershell
+docker compose up --build
+```
+
+The app will listen on all local network interfaces:
+
+```text
+http://127.0.0.1:8000/
+http://<your-lan-ip>:8000/
+```
+
+Demo account after the container starts:
+
+```text
+login: demo
+password: demo12345
+```
+
 ## Production Configuration
 
 Copy `.env.example` to `.env` or set equivalent environment variables in your hosting platform.
