@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %}Explore - Cozy Paws{% endblock %}
+{% block content %}
+<section class="summary-row">
+    <div><span class="eyebrow">Explore</span><strong>{% if pet %}{{ pet.name }} has {{ pet.energy }} energy{% else %}No active pet{% endif %}</strong></div>
+    <div class="coins"><svg><use href="#i-coin"></use></svg>{{ profile.coins }}</div>
+</section>
+
+<section class="item-grid">
+    {% for row in site_rows %}
+        <article class="item-card">
+            <div class="item-icon care"><svg><use href="#i-star"></use></svg></div>
+            <h2>{{ row.site.name }}</h2>
+            <p>{{ row.site.description }}</p>
+            <div class="effect-list">
+                <span>Level {{ row.site.min_level }}+</span>
+                <span>Energy {{ row.site.energy_cost }}</span>
+                {% if row.site.coin_cost %}<span>Cost {{ row.site.coin_cost }}</span>{% endif %}
+                <span>Attempts {{ row.left }}/{{ row.site.daily_limit }}</span>
+                <span>XP +{{ row.site.reward_experience }}</span>
+            </div>
+            <form method="post" action="{% url 'run_explore' row.site.id %}">
+                {% csrf_token %}
+                <button class="button primary" type="submit" {% if row.left == 0 %}disabled{% endif %}>Explore</button>
+            </form>
+        </article>
+    {% empty %}
+        <section class="empty-state"><p>No exploration sites yet.</p></section>
+    {% endfor %}
+</section>
+
+<section class="panel">
+    <div class="section-head"><h2>Recent finds</h2><a href="{% url 'collections' %}">Collections</a></div>
+    <div class="log-list">
+        {% for log in logs %}
+            <div class="log-line">
+                <span>{{ log.created_at|date:"H:i" }} · {{ log.site.name }}</span>
+                <strong>
+                    {% if log.found_piece %}Piece: {{ log.found_piece.name }}{% elif log.found_trophy %}Trophy: {{ log.found_trophy.name }}{% else %}Coins and experience{% endif %}
+                </strong>
+            </div>
+        {% empty %}
+            <p class="muted">Explore to discover collection pieces and trophies.</p>
+        {% endfor %}
+    </div>
+</section>
+{% endblock %}

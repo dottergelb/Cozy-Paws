@@ -6,20 +6,40 @@ from django.db.models import Count, Max, Q, Sum
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
+import random
 
 from .forms import ChatMessageForm, PetForm, PrivateMessageForm, ProfileSettingsForm, RegisterForm, SupportTicketForm, UserReportForm
 from .models import (
     ActionCooldown,
     ActionLog,
     Achievement,
+    AssistantType,
     ChatMessage,
+    Club,
+    ClubAnnouncement,
+    ClubBuilding,
+    ClubBuildingType,
+    ClubContribution,
+    ClubHistoryEvent,
+    ClubJoinRequest,
+    ClubMembership,
+    CollectionPiece,
+    CollectionSet,
+    CompletedCollection,
     EquippedWearable,
+    ExplorationLog,
+    ExplorationSite,
     Friendship,
+    FurnitureItem,
     InventoryItem,
     Item,
+    OwnedCollectionPiece,
+    OwnedFurniture,
+    OwnedTrophy,
     OwnedWearable,
     Pet,
     PetShow,
+    PlayerAssistant,
     PlayerAchievement,
     PlayerProfile,
     PrivateMessage,
@@ -27,6 +47,7 @@ from .models import (
     QuestProgress,
     ShowEntry,
     SupportTicket,
+    Trophy,
     UserReport,
     WearableItem,
 )
@@ -84,6 +105,9 @@ COOLDOWNS = {
     "chat": 10,
     "message": 10,
     "support": 60,
+    "explore": 8,
+    "assistant": 5,
+    "club": 5,
 }
 
 
@@ -171,6 +195,41 @@ def add_quest_progress(profile, action, amount=1):
 
 def log_action(profile, text, pet=None):
     ActionLog.objects.create(profile=profile, pet=pet, text=text)
+
+
+def award_trophy(profile, trophy, pet=None):
+    _owned, created = OwnedTrophy.objects.get_or_create(profile=profile, trophy=trophy)
+    if created:
+        log_action(profile, f"Trophy earned: {trophy.name}.", pet)
+    return created
+
+
+def complete_ready_collections(profile):
+    completed = []
+    for collection in CollectionSet.objects.filter(active=True).prefetch_related("pieces"):
+        if CompletedCollection.objects.filter(profile=profile, collection=collection).exists():
+            continue
+        pieces = list(collection.pieces.all())
+        if pieces and all(OwnedCollectionPiece.objects.filter(profile=profile, piece=piece, quantity__gt=0).exists() for piece in pieces):
+            CompletedCollection.objects.create(profile=profile, collection=collection)
+            profile.coins += collection.reward_coins
+            profile.hearts += collection.reward_hearts
+            completed.append(collection)
+    if completed:
+        profile.save(update_fields=["coins", "hearts"])
+    return completed
+
+
+def assistant_bonus(profile, role):
+    total = 0
+    for assistant in profile.assistants.select_related("assistant_type").filter(assistant_type__role=role):
+        total += assistant.bonus
+    return total
+
+
+def club_for_profile(profile):
+    membership = profile.club_memberships.select_related("club").order_by("joined_at").first()
+    return membership.club if membership else None
 
 
 def award_achievement(request, profile, code):
@@ -449,6 +508,82 @@ def buy_wearable(request, wearable_id):
 
 
 @login_required
+def home_room(request):
+    profile_obj = get_profile(request.user)
+    owned = profile_obj.furniture.select_related("item").order_by("item__slot", "item__price")
+    shop_items = FurnitureItem.objects.exclude(id__in=owned.values_list("item_id", flat=True)).order_by("slot", "price")
+    placed = owned.filter(placed=True)
+    return render(
+        request,
+        "game/home_room.html",
+        {
+            "profile": profile_obj,
+            "owned": owned,
+            "placed": placed,
+            "shop_items": shop_items,
+            "beauty_bonus": sum(item.beauty_total for item in placed),
+            "xp_bonus": sum(item.xp_bonus_total for item in placed),
+        },
+    )
+
+
+@login_required
+def buy_furniture(request, item_id):
+    if request.method != "POST":
+        return redirect("home_room")
+    profile_obj = get_profile(request.user)
+    item = get_object_or_404(FurnitureItem, id=item_id)
+    if profile_obj.coins < item.price:
+        messages.error(request, "Not enough coins for this furniture.")
+        return redirect("home_room")
+    profile_obj.coins -= item.price
+    profile_obj.save(update_fields=["coins"])
+    owned, created = OwnedFurniture.objects.get_or_create(profile=profile_obj, item=item)
+    if created and not profile_obj.furniture.filter(placed=True, item__slot=item.slot).exists():
+        owned.placed = True
+        owned.save(update_fields=["placed"])
+    log_action(profile_obj, f"Furniture bought: {item.name}.")
+    messages.success(request, f"{item.name} added to your home.")
+    return redirect("home_room")
+
+
+@login_required
+def place_furniture(request, owned_id):
+    if request.method != "POST":
+        return redirect("home_room")
+    profile_obj = get_profile(request.user)
+    owned = get_object_or_404(OwnedFurniture.objects.select_related("item"), id=owned_id, profile=profile_obj)
+    profile_obj.furniture.filter(item__slot=owned.item.slot).update(placed=False)
+    owned.placed = True
+    owned.save(update_fields=["placed"])
+    log_action(profile_obj, f"Furniture placed: {owned.item.name}.")
+    messages.success(request, f"{owned.item.name} placed in the room.")
+    return redirect("home_room")
+
+
+@login_required
+def upgrade_furniture(request, owned_id):
+    if request.method != "POST":
+        return redirect("home_room")
+    profile_obj = get_profile(request.user)
+    owned = get_object_or_404(OwnedFurniture.objects.select_related("item"), id=owned_id, profile=profile_obj)
+    if owned.level >= owned.item.max_level:
+        messages.info(request, "This furniture is already fully upgraded.")
+        return redirect("home_room")
+    cost = owned.upgrade_cost
+    if profile_obj.coins < cost:
+        messages.error(request, "Not enough coins for this upgrade.")
+        return redirect("home_room")
+    profile_obj.coins -= cost
+    profile_obj.save(update_fields=["coins"])
+    owned.level += 1
+    owned.save(update_fields=["level"])
+    log_action(profile_obj, f"Furniture upgraded: {owned.item.name} level {owned.level}.")
+    messages.success(request, f"{owned.item.name} upgraded to level {owned.level}.")
+    return redirect("home_room")
+
+
+@login_required
 def wardrobe(request):
     profile_obj = get_profile(request.user)
     pet = active_pet(request.user)
@@ -514,6 +649,121 @@ def sell_wearable(request, owned_id):
 
 
 @login_required
+def collections(request):
+    profile_obj = get_profile(request.user)
+    completed = complete_ready_collections(profile_obj)
+    for collection in completed:
+        messages.success(request, f"Collection completed: {collection.name}.")
+        log_action(profile_obj, f"Collection completed: {collection.name}.")
+    owned_map = {owned.piece_id: owned.quantity for owned in profile_obj.collection_pieces.select_related("piece")}
+    completed_ids = set(profile_obj.completed_collections.values_list("collection_id", flat=True))
+    collection_rows = []
+    for collection in CollectionSet.objects.filter(active=True).prefetch_related("pieces").order_by("name"):
+        pieces = list(collection.pieces.all())
+        have = sum(1 for piece in pieces if owned_map.get(piece.id, 0) > 0)
+        collection_rows.append(
+            {
+                "collection": collection,
+                "pieces": [(piece, owned_map.get(piece.id, 0)) for piece in pieces],
+                "have": have,
+                "total": len(pieces),
+                "completed": collection.id in completed_ids,
+            }
+        )
+    return render(request, "game/collections.html", {"profile": profile_obj, "collection_rows": collection_rows})
+
+
+@login_required
+def trophies(request):
+    profile_obj = get_profile(request.user)
+    return render(
+        request,
+        "game/trophies.html",
+        {
+            "profile": profile_obj,
+            "trophies": Trophy.objects.order_by("trophy_type", "rarity", "name"),
+            "owned_ids": set(profile_obj.trophies.values_list("trophy_id", flat=True)),
+            "owned": profile_obj.trophies.select_related("trophy"),
+        },
+    )
+
+
+@login_required
+def explore(request):
+    profile_obj = get_profile(request.user)
+    pet = active_pet(request.user)
+    today = timezone.localdate()
+    site_rows = []
+    for site in ExplorationSite.objects.filter(active=True).order_by("min_level", "energy_cost"):
+        used = profile_obj.explorations.filter(site=site, created_at__date=today).count()
+        site_rows.append({"site": site, "used": used, "left": max(0, site.daily_limit - used)})
+    return render(
+        request,
+        "game/explore.html",
+        {
+            "profile": profile_obj,
+            "pet": pet,
+            "site_rows": site_rows,
+            "logs": profile_obj.explorations.select_related("site", "found_piece__collection", "found_trophy", "pet")[:12],
+        },
+    )
+
+
+@login_required
+def run_explore(request, site_id):
+    if request.method != "POST":
+        return redirect("explore")
+    profile_obj = get_profile(request.user)
+    pet = active_pet(request.user)
+    site = get_object_or_404(ExplorationSite, id=site_id, active=True)
+    if not pet:
+        messages.error(request, "Create a pet before exploring.")
+        return redirect("create_pet")
+    if not enforce_cooldown(request, profile_obj, "explore"):
+        return redirect("explore")
+    if pet.level < site.min_level:
+        messages.error(request, "Your pet level is too low for this place.")
+        return redirect("explore")
+    if pet.energy < site.energy_cost:
+        messages.error(request, "Not enough energy for exploration.")
+        return redirect("explore")
+    if profile_obj.coins < site.coin_cost:
+        messages.error(request, "Not enough coins for this exploration.")
+        return redirect("explore")
+    used = profile_obj.explorations.filter(site=site, created_at__date=timezone.localdate()).count()
+    if used >= site.daily_limit:
+        messages.error(request, "No attempts left for this place today.")
+        return redirect("explore")
+
+    profile_obj.coins -= site.coin_cost
+    profile_obj.coins += site.reward_coins
+    pet.change_stats(energy=-site.energy_cost, mood=4, hunger=-4)
+    pet.add_experience(site.reward_experience)
+    pieces = list(CollectionPiece.objects.select_related("collection"))
+    found_piece = random.choice(pieces) if pieces else None
+    found_trophy = None
+    if Trophy.objects.exists() and random.randint(1, 100) <= 10 + assistant_bonus(profile_obj, AssistantType.SCOUT):
+        found_trophy = Trophy.objects.order_by("?").first()
+        award_trophy(profile_obj, found_trophy, pet)
+    if found_piece:
+        owned, _created = OwnedCollectionPiece.objects.get_or_create(profile=profile_obj, piece=found_piece)
+        owned.quantity += 1
+        owned.save(update_fields=["quantity"])
+    profile_obj.save(update_fields=["coins"])
+    pet.save()
+    ExplorationLog.objects.create(profile=profile_obj, pet=pet, site=site, found_piece=found_piece, found_trophy=found_trophy)
+    completed = complete_ready_collections(profile_obj)
+    if found_piece:
+        messages.success(request, f"Found collection piece: {found_piece.name}.")
+    if found_trophy:
+        messages.success(request, f"Found trophy: {found_trophy.name}.")
+    for collection in completed:
+        messages.success(request, f"Collection completed: {collection.name}.")
+    log_action(profile_obj, f"{pet.name} explored {site.name}.", pet)
+    return redirect("explore")
+
+
+@login_required
 def training(request):
     profile_obj = get_profile(request.user)
     return render(request, "game/training.html", {"profile": profile_obj, "pet": active_pet(request.user)})
@@ -546,6 +796,40 @@ def train_pet(request, trait):
     log_action(profile_obj, f"{pet.name} прошел тренировку.", pet)
     messages.success(request, "Тренировка завершена: +1 к навыку, +7 опыта, +2 сердечка.")
     return redirect("training")
+
+
+@login_required
+def assistants(request):
+    profile_obj = get_profile(request.user)
+    rows = []
+    for assistant_type in AssistantType.objects.order_by("role", "name"):
+        assistant, _created = PlayerAssistant.objects.get_or_create(profile=profile_obj, assistant_type=assistant_type)
+        rows.append(assistant)
+    return render(request, "game/assistants.html", {"profile": profile_obj, "assistants": rows})
+
+
+@login_required
+def train_assistant(request, assistant_id):
+    if request.method != "POST":
+        return redirect("assistants")
+    profile_obj = get_profile(request.user)
+    assistant = get_object_or_404(PlayerAssistant.objects.select_related("assistant_type"), id=assistant_id, profile=profile_obj)
+    if not enforce_cooldown(request, profile_obj, "assistant"):
+        return redirect("assistants")
+    if assistant.level >= assistant.assistant_type.max_level:
+        messages.info(request, "This assistant is already at max level.")
+        return redirect("assistants")
+    cost = assistant.train_cost
+    if profile_obj.hearts < cost:
+        messages.error(request, "Not enough hearts for assistant training.")
+        return redirect("assistants")
+    profile_obj.hearts -= cost
+    profile_obj.save(update_fields=["hearts"])
+    assistant.level += 1
+    assistant.save(update_fields=["level"])
+    log_action(profile_obj, f"Assistant trained: {assistant.assistant_type.name} level {assistant.level}.")
+    messages.success(request, f"{assistant.assistant_type.name} is now level {assistant.level}.")
+    return redirect("assistants")
 
 
 @login_required
@@ -593,6 +877,9 @@ def enter_show(request, show_id):
         medal = ShowEntry.BRONZE
         multiplier = 1
     ShowEntry.objects.create(show=show, profile=profile_obj, pet=pet, score=score, medal=medal)
+    trophy = Trophy.objects.filter(source__iexact=show.name, trophy_type=medal).first() or Trophy.objects.filter(trophy_type=medal).first()
+    if trophy:
+        award_trophy(profile_obj, trophy, pet)
     reward_coins = show.reward_coins * multiplier
     reward_hearts = show.reward_hearts * multiplier
     profile_obj.coins += reward_coins
@@ -775,6 +1062,199 @@ def support(request):
         "game/support.html",
         {"profile": profile_obj, "form": form, "tickets": profile_obj.support_tickets.order_by("-created_at")},
     )
+
+
+@login_required
+def clubs(request):
+    profile_obj = get_profile(request.user)
+    current_club = club_for_profile(profile_obj)
+    return render(
+        request,
+        "game/clubs.html",
+        {
+            "profile": profile_obj,
+            "current_club": current_club,
+            "membership": profile_obj.club_memberships.select_related("club").first(),
+            "clubs": Club.objects.annotate(member_count=Count("memberships")).order_by("-level", "name"),
+            "requests": profile_obj.club_join_requests.select_related("club").order_by("-created_at")[:8],
+        },
+    )
+
+
+@login_required
+def create_club(request):
+    if request.method != "POST":
+        return redirect("clubs")
+    profile_obj = get_profile(request.user)
+    if club_for_profile(profile_obj):
+        messages.error(request, "You are already in a club.")
+        return redirect("clubs")
+    if profile_obj.coins < 250:
+        messages.error(request, "Creating a club costs 250 coins.")
+        return redirect("clubs")
+    name = request.POST.get("name", "").strip()[:80]
+    description = request.POST.get("description", "").strip()[:180]
+    if len(name) < 3:
+        messages.error(request, "Club name must be at least 3 characters.")
+        return redirect("clubs")
+    if Club.objects.filter(name__iexact=name).exists():
+        messages.error(request, "A club with this name already exists.")
+        return redirect("clubs")
+    profile_obj.coins -= 250
+    profile_obj.save(update_fields=["coins"])
+    club = Club.objects.create(name=name, description=description)
+    ClubMembership.objects.create(club=club, profile=profile_obj, role=ClubMembership.OWNER)
+    for building_type in ClubBuildingType.objects.all():
+        ClubBuilding.objects.get_or_create(club=club, building_type=building_type)
+    ClubHistoryEvent.objects.create(club=club, actor=profile_obj, text=f"{profile_obj.public_name} founded the club.")
+    messages.success(request, f"Club created: {club.name}.")
+    return redirect("club_detail", club_id=club.id)
+
+
+@login_required
+def club_detail(request, club_id):
+    profile_obj = get_profile(request.user)
+    club = get_object_or_404(Club.objects.annotate(member_count=Count("memberships")), id=club_id)
+    membership = ClubMembership.objects.filter(club=club, profile=profile_obj).first()
+    return render(
+        request,
+        "game/club_detail.html",
+        {
+            "profile": profile_obj,
+            "club": club,
+            "membership": membership,
+            "members": club.memberships.select_related("profile__user").order_by("role", "-contribution_score"),
+            "buildings": club.buildings.select_related("building_type").order_by("building_type__effect", "building_type__name"),
+            "history": club.history.select_related("actor__user")[:12],
+            "announcements": club.announcements.select_related("author__user")[:5],
+            "join_requests": club.join_requests.filter(status=ClubJoinRequest.PENDING).select_related("profile__user")[:10],
+        },
+    )
+
+
+@login_required
+def request_club_join(request, club_id):
+    if request.method != "POST":
+        return redirect("club_detail", club_id=club_id)
+    profile_obj = get_profile(request.user)
+    club = get_object_or_404(Club, id=club_id)
+    if club_for_profile(profile_obj):
+        messages.error(request, "You are already in a club.")
+        return redirect("club_detail", club_id=club_id)
+    ClubJoinRequest.objects.get_or_create(
+        club=club,
+        profile=profile_obj,
+        status=ClubJoinRequest.PENDING,
+        defaults={"message": request.POST.get("message", "")[:160]},
+    )
+    messages.success(request, "Join request sent.")
+    return redirect("club_detail", club_id=club_id)
+
+
+@login_required
+def accept_club_join(request, request_id):
+    if request.method != "POST":
+        return redirect("clubs")
+    profile_obj = get_profile(request.user)
+    join_request = get_object_or_404(ClubJoinRequest.objects.select_related("club", "profile"), id=request_id, status=ClubJoinRequest.PENDING)
+    membership = ClubMembership.objects.filter(club=join_request.club, profile=profile_obj, role__in=[ClubMembership.OWNER, ClubMembership.DEPUTY]).first()
+    if not membership:
+        messages.error(request, "Only club leaders can accept requests.")
+        return redirect("club_detail", club_id=join_request.club.id)
+    if join_request.club.memberships.count() >= join_request.club.member_limit:
+        messages.error(request, "The club is full.")
+        return redirect("club_detail", club_id=join_request.club.id)
+    if club_for_profile(join_request.profile):
+        join_request.status = ClubJoinRequest.DECLINED
+        join_request.save(update_fields=["status"])
+        messages.error(request, "This player already joined another club.")
+        return redirect("club_detail", club_id=join_request.club.id)
+    ClubMembership.objects.create(club=join_request.club, profile=join_request.profile)
+    join_request.status = ClubJoinRequest.ACCEPTED
+    join_request.save(update_fields=["status"])
+    ClubHistoryEvent.objects.create(club=join_request.club, actor=profile_obj, text=f"{join_request.profile.public_name} joined the club.")
+    messages.success(request, "Join request accepted.")
+    return redirect("club_detail", club_id=join_request.club.id)
+
+
+@login_required
+def contribute_club(request, club_id):
+    if request.method != "POST":
+        return redirect("club_detail", club_id=club_id)
+    profile_obj = get_profile(request.user)
+    club = get_object_or_404(Club, id=club_id)
+    membership = get_object_or_404(ClubMembership, club=club, profile=profile_obj)
+    coins = max(0, int(request.POST.get("coins") or 0))
+    hearts = max(0, int(request.POST.get("hearts") or 0))
+    if coins == 0 and hearts == 0:
+        messages.error(request, "Choose coins or hearts to contribute.")
+        return redirect("club_detail", club_id=club.id)
+    if profile_obj.coins < coins or profile_obj.hearts < hearts:
+        messages.error(request, "Not enough resources for this contribution.")
+        return redirect("club_detail", club_id=club.id)
+    profile_obj.coins -= coins
+    profile_obj.hearts -= hearts
+    profile_obj.save(update_fields=["coins", "hearts"])
+    club.coins += coins
+    club.hearts += hearts
+    club.experience += coins + hearts
+    while club.experience >= club.level * 500:
+        club.experience -= club.level * 500
+        club.level += 1
+        club.member_limit += 2
+    club.save(update_fields=["coins", "hearts", "experience", "level", "member_limit"])
+    membership.contribution_score += coins + hearts
+    membership.save(update_fields=["contribution_score"])
+    ClubContribution.objects.create(club=club, profile=profile_obj, coins=coins, hearts=hearts)
+    ClubHistoryEvent.objects.create(club=club, actor=profile_obj, text=f"{profile_obj.public_name} contributed to the club.")
+    messages.success(request, "Contribution added to club treasury.")
+    return redirect("club_detail", club_id=club.id)
+
+
+@login_required
+def upgrade_club_building(request, building_id):
+    if request.method != "POST":
+        return redirect("clubs")
+    profile_obj = get_profile(request.user)
+    building = get_object_or_404(ClubBuilding.objects.select_related("club", "building_type"), id=building_id)
+    membership = ClubMembership.objects.filter(club=building.club, profile=profile_obj, role__in=[ClubMembership.OWNER, ClubMembership.DEPUTY]).first()
+    if not membership:
+        messages.error(request, "Only club leaders can upgrade buildings.")
+        return redirect("club_detail", club_id=building.club.id)
+    if building.level >= building.building_type.max_level:
+        messages.info(request, "This building is already max level.")
+        return redirect("club_detail", club_id=building.club.id)
+    cost = building.upgrade_cost
+    if building.club.coins < cost:
+        messages.error(request, "Club treasury does not have enough coins.")
+        return redirect("club_detail", club_id=building.club.id)
+    building.club.coins -= cost
+    building.club.save(update_fields=["coins"])
+    building.level += 1
+    building.save(update_fields=["level"])
+    ClubHistoryEvent.objects.create(club=building.club, actor=profile_obj, text=f"{building.building_type.name} upgraded to level {building.level}.")
+    messages.success(request, f"{building.building_type.name} upgraded.")
+    return redirect("club_detail", club_id=building.club.id)
+
+
+@login_required
+def post_club_announcement(request, club_id):
+    if request.method != "POST":
+        return redirect("club_detail", club_id=club_id)
+    profile_obj = get_profile(request.user)
+    club = get_object_or_404(Club, id=club_id)
+    membership = ClubMembership.objects.filter(club=club, profile=profile_obj, role__in=[ClubMembership.OWNER, ClubMembership.DEPUTY, ClubMembership.OFFICER]).first()
+    if not membership:
+        messages.error(request, "Only club officers can post announcements.")
+        return redirect("club_detail", club_id=club.id)
+    body = request.POST.get("body", "").strip()[:240]
+    if not body:
+        messages.error(request, "Announcement cannot be empty.")
+        return redirect("club_detail", club_id=club.id)
+    ClubAnnouncement.objects.create(club=club, author=profile_obj, body=body)
+    ClubHistoryEvent.objects.create(club=club, actor=profile_obj, text="Club announcement posted.")
+    messages.success(request, "Announcement posted.")
+    return redirect("club_detail", club_id=club.id)
 
 
 def rating(request):

@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+{% block title %}Home - Cozy Paws{% endblock %}
+{% block content %}
+<section class="summary-row">
+    <div><span class="eyebrow">Pet home</span><strong>Room bonus: +{{ beauty_bonus }} beauty</strong></div>
+    <div class="coins"><svg><use href="#i-coin"></use></svg>{{ profile.coins }}</div>
+</section>
+
+<section class="panel">
+    <div class="section-head">
+        <h2>Placed furniture</h2>
+        <span class="badge">XP +{{ xp_bonus }}%</span>
+    </div>
+    <div class="item-grid">
+        {% for owned in placed %}
+            <article class="item-card">
+                <span class="item-dot" style="background: {{ owned.item.color }}"></span>
+                <h2>{{ owned.item.name }}</h2>
+                <p>{{ owned.item.description }}</p>
+                <div class="effect-list">
+                    <span>Slot {{ owned.item.get_slot_display }}</span>
+                    <span>Level {{ owned.level }}</span>
+                    <span>Beauty +{{ owned.beauty_total }}</span>
+                    {% if owned.xp_bonus_total %}<span>XP +{{ owned.xp_bonus_total }}%</span>{% endif %}
+                </div>
+                <form method="post" action="{% url 'upgrade_furniture' owned.id %}">
+                    {% csrf_token %}
+                    <button class="button primary" type="submit">Upgrade for {{ owned.upgrade_cost }}</button>
+                </form>
+            </article>
+        {% empty %}
+            <p class="muted">Buy furniture to start building a cozy room.</p>
+        {% endfor %}
+    </div>
+</section>
+
+<section class="panel">
+    <div class="section-head">
+        <h2>Owned furniture</h2>
+    </div>
+    <div class="pet-list">
+        {% for owned in owned %}
+            <div class="mini-pet">
+                <span class="item-dot" style="background: {{ owned.item.color }}"></span>
+                <div>
+                    <strong>{{ owned.item.name }}</strong>
+                    <span>{{ owned.item.get_slot_display }} · level {{ owned.level }} · +{{ owned.beauty_total }} beauty</span>
+                </div>
+                {% if owned.placed %}
+                    <span class="active-dot">Placed</span>
+                {% else %}
+                    <form method="post" action="{% url 'place_furniture' owned.id %}">
+                        {% csrf_token %}
+                        <button class="mini-button" type="submit">Place</button>
+                    </form>
+                {% endif %}
+            </div>
+        {% empty %}
+            <p class="muted">No furniture yet.</p>
+        {% endfor %}
+    </div>
+</section>
+
+<section class="panel">
+    <div class="section-head">
+        <h2>Furniture shop</h2>
+    </div>
+    <div class="item-grid">
+        {% for item in shop_items %}
+            <article class="item-card">
+                <span class="item-dot" style="background: {{ item.color }}"></span>
+                <h2>{{ item.name }}</h2>
+                <p>{{ item.description }}</p>
+                <div class="effect-list">
+                    <span>{{ item.get_slot_display }}</span>
+                    <span>Beauty +{{ item.beauty_bonus }}/level</span>
+                    {% if item.xp_bonus_percent %}<span>XP +{{ item.xp_bonus_percent }}%/level</span>{% endif %}
+                </div>
+                <form method="post" action="{% url 'buy_furniture' item.id %}">
+                    {% csrf_token %}
+                    <button class="button primary" type="submit">Buy for {{ item.price }}</button>
+                </form>
+            </article>
+        {% empty %}
+            <p class="muted">All starter furniture is already owned.</p>
+        {% endfor %}
+    </div>
+</section>
+{% endblock %}

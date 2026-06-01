@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}Collections - Cozy Paws{% endblock %}
+{% block content %}
+<section class="summary-row">
+    <div><span class="eyebrow">Collections</span><strong>Duplicate pieces matter</strong></div>
+    <div class="coins"><svg><use href="#i-coin"></use></svg>{{ profile.coins }}</div>
+</section>
+
+<section class="quest-stack">
+    {% for row in collection_rows %}
+        <article class="quest-card">
+            <div class="section-head">
+                <h2>{{ row.collection.name }}</h2>
+                {% if row.completed %}<span class="badge">Complete</span>{% else %}<span class="badge">{{ row.have }}/{{ row.total }}</span>{% endif %}
+            </div>
+            <p>{{ row.collection.description }}</p>
+            <div class="effect-list">
+                <span>Reward {{ row.collection.reward_coins }} coins</span>
+                <span>{{ row.collection.reward_hearts }} hearts</span>
+                <span>Beauty +{{ row.collection.beauty_bonus }}</span>
+            </div>
+            <div class="pet-list">
+                {% for piece, quantity in row.pieces %}
+                    <div class="mini-pet">
+                        <span class="rank">{{ forloop.counter }}</span>
+                        <div><strong>{{ piece.name }}</strong><span>{{ row.collection.name }}</span></div>
+                        <span class="{% if quantity %}active-dot{% else %}quantity{% endif %}">x{{ quantity }}</span>
+                    </div>
+                {% endfor %}
+            </div>
+        </article>
+    {% empty %}
+        <section class="empty-state"><p>Seed data has not added collections yet.</p></section>
+    {% endfor %}
+</section>
+{% endblock %}

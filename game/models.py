@@ -24,6 +24,13 @@ class PlayerProfile(models.Model):
     def public_name(self):
         return self.display_name or self.user.username
 
+    @property
+    def passive_beauty_bonus(self):
+        furniture = sum(piece.beauty_total for piece in self.furniture.select_related("item").filter(placed=True))
+        trophies = self.trophies.aggregate(total=models.Sum("trophy__beauty_bonus"))["total"] or 0
+        collections = self.completed_collections.aggregate(total=models.Sum("collection__beauty_bonus"))["total"] or 0
+        return furniture + trophies + collections
+
 
 class Pet(models.Model):
     CAT = "cat"
@@ -83,7 +90,9 @@ class Pet(models.Model):
 
     @property
     def show_power(self):
-        return self.level * 8 + self.beauty + self.equipped_beauty_bonus + self.agility + self.obedience + self.charm
+        profile = getattr(self.owner, "profile", None)
+        profile_bonus = profile.passive_beauty_bonus if profile else 0
+        return self.level * 8 + self.beauty + self.equipped_beauty_bonus + profile_bonus + self.agility + self.obedience + self.charm
 
 
 class Item(models.Model):
@@ -390,3 +399,344 @@ class UserReport(models.Model):
 
     def __str__(self):
         return self.reason
+
+
+class FurnitureItem(models.Model):
+    BED = "bed"
+    TOY_CORNER = "toy_corner"
+    WINDOW = "window"
+    RUG = "rug"
+    PLANT = "plant"
+    POSTER = "poster"
+    SLOT_CHOICES = [
+        (BED, "Bed"),
+        (TOY_CORNER, "Toy corner"),
+        (WINDOW, "Window"),
+        (RUG, "Rug"),
+        (PLANT, "Plant"),
+        (POSTER, "Poster"),
+    ]
+
+    name = models.CharField(max_length=80, unique=True)
+    description = models.CharField(max_length=180)
+    slot = models.CharField(max_length=24, choices=SLOT_CHOICES)
+    price = models.PositiveIntegerField(default=0)
+    beauty_bonus = models.PositiveIntegerField(default=0)
+    xp_bonus_percent = models.PositiveIntegerField(default=0)
+    max_level = models.PositiveIntegerField(default=5)
+    color = models.CharField(max_length=16, default="#45b08c")
+
+    def __str__(self):
+        return self.name
+
+
+class OwnedFurniture(models.Model):
+    profile = models.ForeignKey(PlayerProfile, on_delete=models.CASCADE, related_name="furniture")
+    item = models.ForeignKey(FurnitureItem, on_delete=models.CASCADE)
+    level = models.PositiveIntegerField(default=1)
+    placed = models.BooleanField(default=False)
+    acquired_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ("profile", "item")
+
+    @property
+    def beauty_total(self):
+        return self.item.beauty_bonus * self.level
+
+    @property
+    def xp_bonus_total(self):
+        return self.item.xp_bonus_percent * self.level
+
+    @property
+    def upgrade_cost(self):
+        return self.item.price + self.level * 35
+
+    def __str__(self):
+        return f"{self.profile}: {self.item} L{self.level}"
+
+
+class CollectionSet(models.Model):
+    name = models.CharField(max_length=80, unique=True)
+    description = models.CharField(max_length=180)
+    reward_coins = models.PositiveIntegerField(default=0)
+    reward_hearts = models.PositiveIntegerField(default=0)
+    beauty_bonus = models.PositiveIntegerField(default=0)
+    active = models.BooleanField(default=True)
+
+    def __str__(self):
+        return self.name
+
+
+class CollectionPiece(models.Model):
+    collection = models.ForeignKey(CollectionSet, on_delete=models.CASCADE, related_name="pieces")
+    name = models.CharField(max_length=80)
+    order = models.PositiveIntegerField(default=1)
+
+    class Meta:
+        unique_together = ("collection", "order")
+        ordering = ["collection", "order"]
+
+    def __str__(self):
+        return f"{self.collection}: {self.name}"
+
+
+class OwnedCollectionPiece(models.Model):
+    profile = models.ForeignKey(PlayerProfile, on_delete=models.CASCADE, related_name="collection_pieces")
+    piece = models.ForeignKey(CollectionPiece, on_delete=models.CASCADE)
+    quantity = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        unique_together = ("profile", "piece")
+
+    def __str__(self):
+        return f"{self.profile}: {self.piece} x{self.quantity}"
+
+
+class CompletedCollection(models.Model):
+    profile = models.ForeignKey(PlayerProfile, on_delete=models.CASCADE, related_name="completed_collections")
+    collection = models.ForeignKey(CollectionSet, on_delete=models.CASCADE)
+    completed_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ("profile", "collection")
+
+    def __str__(self):
+        return f"{self.profile}: {self.collection}"
+
+
+class Trophy(models.Model):
+    MEDAL = "medal"
+    PRIZE = "prize"
+    CUP = "cup"
+    BADGE = "badge"
+    TYPE_CHOICES = [(MEDAL, "Medal"), (PRIZE, "Prize"), (CUP, "Cup"), (BADGE, "Badge")]
+
+    name = models.CharField(max_length=80, unique=True)
+    description = models.CharField(max_length=180)
+    trophy_type = models.CharField(max_length=16, choices=TYPE_CHOICES, default=BADGE)
+    source = models.CharField(max_length=80, blank=True)
+    beauty_bonus = models.PositiveIntegerField(default=0)
+    rarity = models.PositiveIntegerField(default=1)
+    color = models.CharField(max_length=16, default="#f3b84b")
+
+    def __str__(self):
+        return self.name
+
+
+class OwnedTrophy(models.Model):
+    profile = models.ForeignKey(PlayerProfile, on_delete=models.CASCADE, related_name="trophies")
+    trophy = models.ForeignKey(Trophy, on_delete=models.CASCADE)
+    awarded_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ("profile", "trophy")
+
+    def __str__(self):
+        return f"{self.profile}: {self.trophy}"
+
+
+class ExplorationSite(models.Model):
+    name = models.CharField(max_length=80, unique=True)
+    description = models.CharField(max_length=180)
+    min_level = models.PositiveIntegerField(default=1)
+    energy_cost = models.PositiveIntegerField(default=10)
+    coin_cost = models.PositiveIntegerField(default=0)
+    reward_coins = models.PositiveIntegerField(default=0)
+    reward_experience = models.PositiveIntegerField(default=0)
+    daily_limit = models.PositiveIntegerField(default=5)
+    active = models.BooleanField(default=True)
+
+    def __str__(self):
+        return self.name
+
+
+class ExplorationLog(models.Model):
+    profile = models.ForeignKey(PlayerProfile, on_delete=models.CASCADE, related_name="explorations")
+    pet = models.ForeignKey(Pet, on_delete=models.SET_NULL, null=True, blank=True)
+    site = models.ForeignKey(ExplorationSite, on_delete=models.CASCADE)
+    found_piece = models.ForeignKey(CollectionPiece, on_delete=models.SET_NULL, null=True, blank=True)
+    found_trophy = models.ForeignKey(Trophy, on_delete=models.SET_NULL, null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"{self.profile}: {self.site}"
+
+
+class AssistantType(models.Model):
+    CARETAKER = "caretaker"
+    STYLIST = "stylist"
+    SCOUT = "scout"
+    BUILDER = "builder"
+    ROLE_CHOICES = [
+        (CARETAKER, "Care"),
+        (STYLIST, "Style"),
+        (SCOUT, "Explore"),
+        (BUILDER, "Home"),
+    ]
+
+    name = models.CharField(max_length=80, unique=True)
+    description = models.CharField(max_length=180)
+    role = models.CharField(max_length=24, choices=ROLE_CHOICES)
+    base_cost = models.PositiveIntegerField(default=50)
+    max_level = models.PositiveIntegerField(default=20)
+    bonus_per_level = models.PositiveIntegerField(default=1)
+
+    def __str__(self):
+        return self.name
+
+
+class PlayerAssistant(models.Model):
+    profile = models.ForeignKey(PlayerProfile, on_delete=models.CASCADE, related_name="assistants")
+    assistant_type = models.ForeignKey(AssistantType, on_delete=models.CASCADE)
+    level = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        unique_together = ("profile", "assistant_type")
+
+    @property
+    def train_cost(self):
+        return self.assistant_type.base_cost + self.level * 25
+
+    @property
+    def bonus(self):
+        return self.level * self.assistant_type.bonus_per_level
+
+    def __str__(self):
+        return f"{self.profile}: {self.assistant_type} L{self.level}"
+
+
+class Club(models.Model):
+    name = models.CharField(max_length=80, unique=True)
+    description = models.CharField(max_length=180, blank=True)
+    crest_color = models.CharField(max_length=16, default="#45b08c")
+    level = models.PositiveIntegerField(default=1)
+    experience = models.PositiveIntegerField(default=0)
+    coins = models.PositiveIntegerField(default=0)
+    hearts = models.PositiveIntegerField(default=0)
+    member_limit = models.PositiveIntegerField(default=24)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return self.name
+
+
+class ClubMembership(models.Model):
+    OWNER = "owner"
+    DEPUTY = "deputy"
+    OFFICER = "officer"
+    MEMBER = "member"
+    ROLE_CHOICES = [(OWNER, "Owner"), (DEPUTY, "Deputy"), (OFFICER, "Officer"), (MEMBER, "Member")]
+
+    club = models.ForeignKey(Club, on_delete=models.CASCADE, related_name="memberships")
+    profile = models.ForeignKey(PlayerProfile, on_delete=models.CASCADE, related_name="club_memberships")
+    role = models.CharField(max_length=16, choices=ROLE_CHOICES, default=MEMBER)
+    contribution_score = models.PositiveIntegerField(default=0)
+    joined_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ("club", "profile")
+
+    def __str__(self):
+        return f"{self.profile} in {self.club}"
+
+
+class ClubJoinRequest(models.Model):
+    PENDING = "pending"
+    ACCEPTED = "accepted"
+    DECLINED = "declined"
+    STATUS_CHOICES = [(PENDING, "Pending"), (ACCEPTED, "Accepted"), (DECLINED, "Declined")]
+
+    club = models.ForeignKey(Club, on_delete=models.CASCADE, related_name="join_requests")
+    profile = models.ForeignKey(PlayerProfile, on_delete=models.CASCADE, related_name="club_join_requests")
+    message = models.CharField(max_length=160, blank=True)
+    status = models.CharField(max_length=16, choices=STATUS_CHOICES, default=PENDING)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ("club", "profile", "status")
+
+    def __str__(self):
+        return f"{self.profile} -> {self.club}: {self.status}"
+
+
+class ClubBuildingType(models.Model):
+    XP = "xp"
+    CLUB_XP = "club_xp"
+    HOME = "home"
+    WARDROBE = "wardrobe"
+    EXPLORE = "explore"
+    EFFECT_CHOICES = [(XP, "XP"), (CLUB_XP, "Club XP"), (HOME, "Home"), (WARDROBE, "Wardrobe"), (EXPLORE, "Explore")]
+
+    name = models.CharField(max_length=80, unique=True)
+    description = models.CharField(max_length=180)
+    effect = models.CharField(max_length=24, choices=EFFECT_CHOICES)
+    bonus_per_level = models.PositiveIntegerField(default=1)
+    max_level = models.PositiveIntegerField(default=20)
+    base_cost = models.PositiveIntegerField(default=100)
+
+    def __str__(self):
+        return self.name
+
+
+class ClubBuilding(models.Model):
+    club = models.ForeignKey(Club, on_delete=models.CASCADE, related_name="buildings")
+    building_type = models.ForeignKey(ClubBuildingType, on_delete=models.CASCADE)
+    level = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        unique_together = ("club", "building_type")
+
+    @property
+    def upgrade_cost(self):
+        return self.building_type.base_cost + self.level * 75
+
+    @property
+    def bonus(self):
+        return self.level * self.building_type.bonus_per_level
+
+    def __str__(self):
+        return f"{self.club}: {self.building_type} L{self.level}"
+
+
+class ClubContribution(models.Model):
+    club = models.ForeignKey(Club, on_delete=models.CASCADE, related_name="contributions")
+    profile = models.ForeignKey(PlayerProfile, on_delete=models.CASCADE, related_name="club_contributions")
+    coins = models.PositiveIntegerField(default=0)
+    hearts = models.PositiveIntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"{self.profile} -> {self.club}"
+
+
+class ClubHistoryEvent(models.Model):
+    club = models.ForeignKey(Club, on_delete=models.CASCADE, related_name="history")
+    actor = models.ForeignKey(PlayerProfile, on_delete=models.SET_NULL, null=True, blank=True)
+    text = models.CharField(max_length=180)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return self.text
+
+
+class ClubAnnouncement(models.Model):
+    club = models.ForeignKey(Club, on_delete=models.CASCADE, related_name="announcements")
+    author = models.ForeignKey(PlayerProfile, on_delete=models.SET_NULL, null=True, blank=True)
+    body = models.CharField(max_length=240)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return self.body[:40]

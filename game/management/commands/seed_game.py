@@ -1,7 +1,30 @@
 from django.contrib.auth.models import User
 from django.core.management.base import BaseCommand
 
-from game.models import Achievement, Item, Pet, PetShow, PlayerProfile, Quest, WearableItem
+from game.models import (
+    Achievement,
+    AssistantType,
+    Club,
+    ClubBuilding,
+    ClubBuildingType,
+    ClubHistoryEvent,
+    ClubMembership,
+    CollectionPiece,
+    CollectionSet,
+    ExplorationSite,
+    FurnitureItem,
+    Item,
+    OwnedCollectionPiece,
+    OwnedFurniture,
+    OwnedTrophy,
+    Pet,
+    PetShow,
+    PlayerAssistant,
+    PlayerProfile,
+    Quest,
+    Trophy,
+    WearableItem,
+)
 
 
 class Command(BaseCommand):
@@ -238,6 +261,123 @@ class Command(BaseCommand):
         for data in achievements:
             Achievement.objects.update_or_create(code=data["code"], defaults=data)
 
+        furniture_items = [
+            ("Cloud Nap Bed", "A soft corner that helps every pet feel at home.", FurnitureItem.BED, 65, 8, 1, "#75a7e6"),
+            ("Ribbon Toy Basket", "A tidy toy spot with a little style bonus.", FurnitureItem.TOY_CORNER, 55, 6, 0, "#ef7b6a"),
+            ("Sun Window", "Warm light for happier training days.", FurnitureItem.WINDOW, 80, 10, 1, "#f3b84b"),
+            ("Mossy Rug", "A calm green rug for quiet afternoons.", FurnitureItem.RUG, 45, 5, 0, "#45b08c"),
+            ("Pocket Fern", "A tiny plant that makes the room fresher.", FurnitureItem.PLANT, 50, 6, 0, "#23765d"),
+            ("Festival Poster", "A bright poster from a friendly pet show.", FurnitureItem.POSTER, 70, 9, 1, "#9b8ee8"),
+        ]
+        for name, description, slot, price, beauty_bonus, xp_bonus_percent, color in furniture_items:
+            FurnitureItem.objects.update_or_create(
+                name=name,
+                defaults={
+                    "description": description,
+                    "slot": slot,
+                    "price": price,
+                    "beauty_bonus": beauty_bonus,
+                    "xp_bonus_percent": xp_bonus_percent,
+                    "max_level": 6,
+                    "color": color,
+                },
+            )
+
+        collection_data = [
+            ("Picnic Memories", "Small keepsakes from sunny walks.", ["Map scrap", "Berry napkin", "Tiny cup", "Warm pebble"], 45, 8, 10),
+            ("Garden Charms", "Little charms found near flowers and moss.", ["Seed bell", "Leaf pin", "Dew bead", "Sprout ribbon"], 55, 10, 12),
+            ("Moon Trinkets", "Quiet night treasures for patient explorers.", ["Moon button", "Blue thread", "Star shard", "Silver shell"], 70, 14, 16),
+        ]
+        for name, description, pieces, reward_coins, reward_hearts, beauty_bonus in collection_data:
+            collection, _ = CollectionSet.objects.update_or_create(
+                name=name,
+                defaults={
+                    "description": description,
+                    "reward_coins": reward_coins,
+                    "reward_hearts": reward_hearts,
+                    "beauty_bonus": beauty_bonus,
+                    "active": True,
+                },
+            )
+            for index, piece_name in enumerate(pieces, start=1):
+                CollectionPiece.objects.update_or_create(collection=collection, order=index, defaults={"name": piece_name})
+
+        trophies = [
+            ("First Show Ribbon", "Awarded for early show progress.", Trophy.MEDAL, "Домашний смотр", 5, 1, "#f3b84b"),
+            ("Neighborhood Cup", "A cup for steady performers.", Trophy.CUP, "Городской подиум", 12, 2, "#75a7e6"),
+            ("Grand Cozy Prize", "A rare prize for polished teams.", Trophy.PRIZE, "Большой финал", 20, 3, "#9b8ee8"),
+            ("Meadow Finder Badge", "Sometimes found during exploration.", Trophy.BADGE, "Explore", 7, 1, "#45b08c"),
+        ]
+        for name, description, trophy_type, source, beauty_bonus, rarity, color in trophies:
+            Trophy.objects.update_or_create(
+                name=name,
+                defaults={
+                    "description": description,
+                    "trophy_type": trophy_type,
+                    "source": source,
+                    "beauty_bonus": beauty_bonus,
+                    "rarity": rarity,
+                    "color": color,
+                },
+            )
+
+        sites = [
+            ("Soft Meadow", "A safe field with collection scraps and small rewards.", 1, 10, 0, 8, 8, 6),
+            ("Old Garden Path", "A better place for rare keepsakes.", 2, 16, 8, 14, 12, 4),
+            ("Moonlit Hill", "A late-game walk with better trophy odds.", 4, 24, 18, 24, 20, 3),
+        ]
+        for name, description, min_level, energy_cost, coin_cost, reward_coins, reward_experience, daily_limit in sites:
+            ExplorationSite.objects.update_or_create(
+                name=name,
+                defaults={
+                    "description": description,
+                    "min_level": min_level,
+                    "energy_cost": energy_cost,
+                    "coin_cost": coin_cost,
+                    "reward_coins": reward_coins,
+                    "reward_experience": reward_experience,
+                    "daily_limit": daily_limit,
+                    "active": True,
+                },
+            )
+
+        assistants = [
+            ("Kind Caretaker", "Improves long-term care efficiency.", AssistantType.CARETAKER, 20, 20, 1),
+            ("Room Stylist", "Boosts style planning and room growth.", AssistantType.STYLIST, 24, 20, 1),
+            ("Trail Scout", "Improves exploration trophy chances.", AssistantType.SCOUT, 22, 20, 1),
+            ("Tiny Builder", "Helps with home and club construction.", AssistantType.BUILDER, 28, 20, 1),
+        ]
+        for name, description, role, base_cost, max_level, bonus_per_level in assistants:
+            AssistantType.objects.update_or_create(
+                name=name,
+                defaults={
+                    "description": description,
+                    "role": role,
+                    "base_cost": base_cost,
+                    "max_level": max_level,
+                    "bonus_per_level": bonus_per_level,
+                },
+            )
+
+        building_types = [
+            ("Study Nook", "Adds personal experience bonuses.", ClubBuildingType.XP, 2, 20, 100),
+            ("Club Library", "Adds club experience bonuses.", ClubBuildingType.CLUB_XP, 2, 20, 100),
+            ("Design Studio", "Improves home beauty systems.", ClubBuildingType.HOME, 2, 20, 120),
+            ("Wardrobe Hall", "Improves outfit beauty systems.", ClubBuildingType.WARDROBE, 2, 20, 120),
+            ("Explorer Shed", "Improves exploration systems.", ClubBuildingType.EXPLORE, 2, 20, 140),
+        ]
+        for name, description, effect, bonus_per_level, max_level, base_cost in building_types:
+            ClubBuildingType.objects.update_or_create(
+                name=name,
+                defaults={
+                    "description": description,
+                    "effect": effect,
+                    "bonus_per_level": bonus_per_level,
+                    "max_level": max_level,
+                    "base_cost": base_cost,
+                },
+            )
+
         demo, created = User.objects.get_or_create(username="demo")
         if created:
             demo.set_password("demo12345")
@@ -245,7 +385,32 @@ class Command(BaseCommand):
         profile, _ = PlayerProfile.objects.get_or_create(user=demo, defaults={"coins": 180})
         profile.display_name = "Demo Keeper"
         profile.coins = max(profile.coins, 180)
-        profile.save(update_fields=["display_name", "coins"])
+        profile.hearts = max(profile.hearts, 120)
+        profile.save(update_fields=["display_name", "coins", "hearts"])
         Pet.objects.get_or_create(owner=demo, name="Мята", defaults={"species": Pet.FOX, "active": True, "level": 2})
+
+        for furniture in FurnitureItem.objects.order_by("price")[:2]:
+            owned, _ = OwnedFurniture.objects.get_or_create(profile=profile, item=furniture)
+            owned.placed = True
+            owned.save(update_fields=["placed"])
+        first_collection = CollectionSet.objects.order_by("name").first()
+        if first_collection:
+            for piece in first_collection.pieces.all()[:2]:
+                owned_piece, _ = OwnedCollectionPiece.objects.get_or_create(profile=profile, piece=piece)
+                owned_piece.quantity = max(owned_piece.quantity, 1)
+                owned_piece.save(update_fields=["quantity"])
+        first_trophy = Trophy.objects.order_by("rarity", "name").first()
+        if first_trophy:
+            OwnedTrophy.objects.get_or_create(profile=profile, trophy=first_trophy)
+        for assistant_type in AssistantType.objects.all():
+            PlayerAssistant.objects.get_or_create(profile=profile, assistant_type=assistant_type)
+        club, _ = Club.objects.get_or_create(
+            name="Cozy Trail Club",
+            defaults={"description": "A starter club for friendly local testing.", "coins": 300, "hearts": 120, "level": 2},
+        )
+        ClubMembership.objects.get_or_create(club=club, profile=profile, defaults={"role": ClubMembership.OWNER, "contribution_score": 420})
+        for building_type in ClubBuildingType.objects.all():
+            ClubBuilding.objects.get_or_create(club=club, building_type=building_type, defaults={"level": 1})
+        ClubHistoryEvent.objects.get_or_create(club=club, actor=profile, text="The club opened its cozy doors.")
 
         self.stdout.write(self.style.SUCCESS("Starter data is ready. Demo login: demo / demo12345"))

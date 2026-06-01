@@ -2,7 +2,33 @@ from django.contrib.auth.models import User
 from django.test import TestCase
 from django.urls import reverse
 
-from .models import ChatMessage, Item, OwnedWearable, Pet, PetShow, PlayerProfile, Quest, ShowEntry, SupportTicket, WearableItem
+from .models import (
+    AssistantType,
+    ChatMessage,
+    Club,
+    ClubBuilding,
+    ClubBuildingType,
+    ClubContribution,
+    ClubMembership,
+    CollectionPiece,
+    CollectionSet,
+    ExplorationLog,
+    ExplorationSite,
+    FurnitureItem,
+    Item,
+    OwnedCollectionPiece,
+    OwnedFurniture,
+    OwnedWearable,
+    Pet,
+    PetShow,
+    PlayerAssistant,
+    PlayerProfile,
+    Quest,
+    ShowEntry,
+    SupportTicket,
+    Trophy,
+    WearableItem,
+)
 
 
 class GameFlowTests(TestCase):
@@ -36,6 +62,45 @@ class GameFlowTests(TestCase):
             reward_coins=10,
             reward_hearts=2,
             reward_experience=5,
+        )
+        self.furniture = FurnitureItem.objects.create(
+            name="Test Bed",
+            description="Test furniture",
+            slot=FurnitureItem.BED,
+            price=25,
+            beauty_bonus=3,
+            xp_bonus_percent=1,
+        )
+        self.collection = CollectionSet.objects.create(
+            name="Test Collection",
+            description="Test pieces",
+            reward_coins=10,
+            reward_hearts=3,
+            beauty_bonus=5,
+        )
+        self.piece = CollectionPiece.objects.create(collection=self.collection, name="Test Piece", order=1)
+        self.site = ExplorationSite.objects.create(
+            name="Test Meadow",
+            description="Test explore",
+            min_level=1,
+            energy_cost=5,
+            reward_coins=3,
+            reward_experience=4,
+            daily_limit=2,
+        )
+        self.trophy = Trophy.objects.create(name="Test Badge", description="Test trophy", trophy_type=Trophy.BADGE, beauty_bonus=2)
+        self.assistant_type = AssistantType.objects.create(
+            name="Test Scout",
+            description="Test assistant",
+            role=AssistantType.SCOUT,
+            base_cost=5,
+            max_level=3,
+        )
+        self.club_building_type = ClubBuildingType.objects.create(
+            name="Test Hall",
+            description="Club building",
+            effect=ClubBuildingType.XP,
+            base_cost=20,
         )
 
     def test_protected_dashboard_redirects_to_login(self):
@@ -101,3 +166,55 @@ class GameFlowTests(TestCase):
         response = self.client.post(reverse("support"), {"subject": "Помощь", "body": "Нужна проверка"})
         self.assertRedirects(response, reverse("support"))
         self.assertEqual(SupportTicket.objects.filter(profile=self.profile).count(), 1)
+
+    def test_home_room_buy_place_and_upgrade(self):
+        self.client.login(username="player", password="strong-pass-123")
+        response = self.client.post(reverse("buy_furniture", args=[self.furniture.id]))
+        self.assertRedirects(response, reverse("home_room"))
+        owned = OwnedFurniture.objects.get(profile=self.profile, item=self.furniture)
+        self.assertTrue(owned.placed)
+        self.profile.refresh_from_db()
+        self.assertEqual(self.profile.coins, 75)
+        response = self.client.post(reverse("upgrade_furniture", args=[owned.id]))
+        self.assertRedirects(response, reverse("home_room"))
+        owned.refresh_from_db()
+        self.assertEqual(owned.level, 2)
+
+    def test_explore_awards_piece_and_log(self):
+        self.client.login(username="player", password="strong-pass-123")
+        response = self.client.post(reverse("run_explore", args=[self.site.id]))
+        self.assertRedirects(response, reverse("explore"))
+        self.assertEqual(ExplorationLog.objects.filter(profile=self.profile).count(), 1)
+        self.assertTrue(OwnedCollectionPiece.objects.filter(profile=self.profile, quantity__gt=0).exists())
+        self.pet.refresh_from_db()
+        self.assertEqual(self.pet.energy, 75)
+
+    def test_assistant_training_spends_hearts(self):
+        self.profile.hearts = 20
+        self.profile.save(update_fields=["hearts"])
+        assistant = PlayerAssistant.objects.create(profile=self.profile, assistant_type=self.assistant_type)
+        self.client.login(username="player", password="strong-pass-123")
+        response = self.client.post(reverse("train_assistant", args=[assistant.id]))
+        self.assertRedirects(response, reverse("assistants"))
+        assistant.refresh_from_db()
+        self.profile.refresh_from_db()
+        self.assertEqual(assistant.level, 1)
+        self.assertEqual(self.profile.hearts, 15)
+
+    def test_club_contribution_and_building_upgrade(self):
+        self.profile.coins = 500
+        self.profile.hearts = 20
+        self.profile.save(update_fields=["coins", "hearts"])
+        club = Club.objects.create(name="Test Club", coins=50)
+        ClubMembership.objects.create(club=club, profile=self.profile, role=ClubMembership.OWNER)
+        building = ClubBuilding.objects.create(club=club, building_type=self.club_building_type)
+        self.client.login(username="player", password="strong-pass-123")
+        response = self.client.post(reverse("contribute_club", args=[club.id]), {"coins": 40, "hearts": 5})
+        self.assertRedirects(response, reverse("club_detail", args=[club.id]))
+        self.assertEqual(ClubContribution.objects.filter(club=club, profile=self.profile).count(), 1)
+        club.refresh_from_db()
+        self.assertEqual(club.coins, 90)
+        response = self.client.post(reverse("upgrade_club_building", args=[building.id]))
+        self.assertRedirects(response, reverse("club_detail", args=[club.id]))
+        building.refresh_from_db()
+        self.assertEqual(building.level, 1)

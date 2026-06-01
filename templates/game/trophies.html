@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}Trophies - Cozy Paws{% endblock %}
+{% block content %}
+<section class="summary-row">
+    <div><span class="eyebrow">Trophies</span><strong>{{ owned|length }} earned</strong></div>
+    <div class="coins">Beauty +{{ profile.passive_beauty_bonus }}</div>
+</section>
+
+<section class="item-grid">
+    {% for trophy in trophies %}
+        <article class="item-card">
+            <span class="item-dot" style="background: {{ trophy.color }}"></span>
+            <h2>{{ trophy.name }}</h2>
+            <p>{{ trophy.description }}</p>
+            <div class="effect-list">
+                <span>{{ trophy.get_trophy_type_display }}</span>
+                <span>Beauty +{{ trophy.beauty_bonus }}</span>
+                <span>Rarity {{ trophy.rarity }}</span>
+                {% if trophy.source %}<span>{{ trophy.source }}</span>{% endif %}
+            </div>
+            {% if trophy.id in owned_ids %}
+                <span class="active-dot">Owned</span>
+            {% else %}
+                <span class="quantity">Locked</span>
+            {% endif %}
+        </article>
+    {% empty %}
+        <section class="empty-state"><p>No trophies seeded yet.</p></section>
+    {% endfor %}
+</section>
+{% endblock %}

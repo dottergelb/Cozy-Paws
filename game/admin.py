@@ -4,14 +4,33 @@ from .models import (
     ActionCooldown,
     ActionLog,
     Achievement,
+    AssistantType,
     ChatMessage,
+    Club,
+    ClubAnnouncement,
+    ClubBuilding,
+    ClubBuildingType,
+    ClubContribution,
+    ClubHistoryEvent,
+    ClubJoinRequest,
+    ClubMembership,
+    CollectionPiece,
+    CollectionSet,
+    CompletedCollection,
     EquippedWearable,
+    ExplorationLog,
+    ExplorationSite,
     Friendship,
+    FurnitureItem,
     InventoryItem,
     Item,
+    OwnedCollectionPiece,
+    OwnedFurniture,
+    OwnedTrophy,
     OwnedWearable,
     Pet,
     PetShow,
+    PlayerAssistant,
     PlayerAchievement,
     PlayerProfile,
     PrivateMessage,
@@ -19,6 +38,7 @@ from .models import (
     QuestProgress,
     ShowEntry,
     SupportTicket,
+    Trophy,
     UserReport,
     WearableItem,
 )
@@ -141,3 +161,114 @@ class SupportTicketAdmin(admin.ModelAdmin):
 class UserReportAdmin(admin.ModelAdmin):
     list_display = ("reporter", "reported_profile", "reason", "resolved", "created_at")
     list_filter = ("resolved",)
+
+
+@admin.register(FurnitureItem)
+class FurnitureItemAdmin(admin.ModelAdmin):
+    list_display = ("name", "slot", "price", "beauty_bonus", "xp_bonus_percent", "max_level")
+    list_filter = ("slot",)
+
+
+@admin.register(OwnedFurniture)
+class OwnedFurnitureAdmin(admin.ModelAdmin):
+    list_display = ("profile", "item", "level", "placed")
+    list_filter = ("placed",)
+
+
+@admin.register(CollectionSet)
+class CollectionSetAdmin(admin.ModelAdmin):
+    list_display = ("name", "reward_coins", "reward_hearts", "beauty_bonus", "active")
+    list_filter = ("active",)
+
+
+@admin.register(CollectionPiece)
+class CollectionPieceAdmin(admin.ModelAdmin):
+    list_display = ("collection", "name", "order")
+    list_filter = ("collection",)
+
+
+@admin.register(OwnedCollectionPiece)
+class OwnedCollectionPieceAdmin(admin.ModelAdmin):
+    list_display = ("profile", "piece", "quantity")
+
+
+@admin.register(CompletedCollection)
+class CompletedCollectionAdmin(admin.ModelAdmin):
+    list_display = ("profile", "collection", "completed_at")
+
+
+@admin.register(Trophy)
+class TrophyAdmin(admin.ModelAdmin):
+    list_display = ("name", "trophy_type", "source", "beauty_bonus", "rarity")
+    list_filter = ("trophy_type", "rarity")
+
+
+@admin.register(OwnedTrophy)
+class OwnedTrophyAdmin(admin.ModelAdmin):
+    list_display = ("profile", "trophy", "awarded_at")
+
+
+@admin.register(ExplorationSite)
+class ExplorationSiteAdmin(admin.ModelAdmin):
+    list_display = ("name", "min_level", "energy_cost", "coin_cost", "daily_limit", "active")
+    list_filter = ("active",)
+
+
+@admin.register(ExplorationLog)
+class ExplorationLogAdmin(admin.ModelAdmin):
+    list_display = ("profile", "pet", "site", "found_piece", "found_trophy", "created_at")
+
+
+@admin.register(AssistantType)
+class AssistantTypeAdmin(admin.ModelAdmin):
+    list_display = ("name", "role", "base_cost", "max_level", "bonus_per_level")
+    list_filter = ("role",)
+
+
+@admin.register(PlayerAssistant)
+class PlayerAssistantAdmin(admin.ModelAdmin):
+    list_display = ("profile", "assistant_type", "level")
+
+
+@admin.register(Club)
+class ClubAdmin(admin.ModelAdmin):
+    list_display = ("name", "level", "experience", "coins", "hearts", "member_limit")
+    search_fields = ("name",)
+
+
+@admin.register(ClubMembership)
+class ClubMembershipAdmin(admin.ModelAdmin):
+    list_display = ("club", "profile", "role", "contribution_score", "joined_at")
+    list_filter = ("role",)
+
+
+@admin.register(ClubJoinRequest)
+class ClubJoinRequestAdmin(admin.ModelAdmin):
+    list_display = ("club", "profile", "status", "created_at")
+    list_filter = ("status",)
+
+
+@admin.register(ClubBuildingType)
+class ClubBuildingTypeAdmin(admin.ModelAdmin):
+    list_display = ("name", "effect", "bonus_per_level", "max_level", "base_cost")
+    list_filter = ("effect",)
+
+
+@admin.register(ClubBuilding)
+class ClubBuildingAdmin(admin.ModelAdmin):
+    list_display = ("club", "building_type", "level")
+
+
+@admin.register(ClubContribution)
+class ClubContributionAdmin(admin.ModelAdmin):
+    list_display = ("club", "profile", "coins", "hearts", "created_at")
+
+
+@admin.register(ClubHistoryEvent)
+class ClubHistoryEventAdmin(admin.ModelAdmin):
+    list_display = ("club", "actor", "text", "created_at")
+
+
+@admin.register(ClubAnnouncement)
+class ClubAnnouncementAdmin(admin.ModelAdmin):
+    list_display = ("club", "author", "body", "created_at")

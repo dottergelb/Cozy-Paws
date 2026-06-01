@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}Assistants - Cozy Paws{% endblock %}
+{% block content %}
+<section class="summary-row">
+    <div><span class="eyebrow">Assistants</span><strong>Permanent account upgrades</strong></div>
+    <div class="coins">Hearts {{ profile.hearts }}</div>
+</section>
+
+<section class="item-grid">
+    {% for assistant in assistants %}
+        <article class="item-card">
+            <div class="item-icon toy"><svg><use href="#i-star"></use></svg></div>
+            <h2>{{ assistant.assistant_type.name }}</h2>
+            <p>{{ assistant.assistant_type.description }}</p>
+            <div class="effect-list">
+                <span>{{ assistant.assistant_type.get_role_display }}</span>
+                <span>Level {{ assistant.level }}/{{ assistant.assistant_type.max_level }}</span>
+                <span>Bonus +{{ assistant.bonus }}</span>
+            </div>
+            <form method="post" action="{% url 'train_assistant' assistant.id %}">
+                {% csrf_token %}
+                <button class="button primary" type="submit">Train for {{ assistant.train_cost }} hearts</button>
+            </form>
+        </article>
+    {% empty %}
+        <section class="empty-state"><p>No assistants seeded yet.</p></section>
+    {% endfor %}
+</section>
+{% endblock %}
