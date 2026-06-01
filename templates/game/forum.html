@@ -1,8 +1,8 @@
 {% extends "base.html" %}
-{% block title %}Forum - Cozy Paws{% endblock %}
+{% block title %}Форум - Cozy Paws{% endblock %}
 {% block content %}
 <section class="summary-row">
-    <div><span class="eyebrow">Forum</span><strong>News, help and player talk</strong></div>
+    <div><span class="eyebrow">Форум</span><strong>Новости, помощь и разговоры игроков</strong></div>
     <div class="coins"><svg><use href="#i-star"></use></svg>{{ recent_threads|length }}</div>
 </section>
 
@@ -13,22 +13,22 @@
             <h2><a href="{% url 'forum_category' category.id %}">{{ category.name }}</a></h2>
             <p>{{ category.description }}</p>
             <div class="effect-list">
-                <span>{{ category.thread_count }} threads</span>
-                {% if category.is_news %}<span>News</span>{% endif %}
+                <span>{{ category.thread_count }} тем</span>
+                {% if category.is_news %}<span>Новости</span>{% endif %}
             </div>
         </article>
     {% empty %}
-        <section class="empty-state"><p>No forum categories yet.</p></section>
+        <section class="empty-state"><p>Категории форума пока не добавлены.</p></section>
     {% endfor %}
 </section>
 
 <section class="panel">
-    <div class="section-head"><h2>Recent threads</h2><a href="{% url 'help_center' %}">Help</a></div>
+    <div class="section-head"><h2>Свежие темы</h2><a href="{% url 'help_center' %}">Справка</a></div>
     <div class="log-list">
         {% for thread in recent_threads %}
             <div class="log-line"><span>{{ thread.category.name }}</span><strong><a href="{% url 'forum_thread' thread.id %}">{{ thread.title }}</a></strong></div>
         {% empty %}
-            <p class="muted">Create the first discussion.</p>
+            <p class="muted">Создай первое обсуждение.</p>
         {% endfor %}
     </div>
 </section>

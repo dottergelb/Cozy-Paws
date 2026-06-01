@@ -1,13 +1,13 @@
-{% extends "base.html" %}
-{% block title %}Одежда - Cozy Paws{% endblock %}
+﻿{% extends "base.html" %}
+{% block title %}РћРґРµР¶РґР° - Cozy Paws{% endblock %}
 {% block content %}
 <section class="summary-row">
-    <div><span class="eyebrow">Магазин одежды</span><strong>Внешность и бонусы</strong></div>
+    <div><span class="eyebrow">РњР°РіР°Р·РёРЅ РѕРґРµР¶РґС‹</span><strong>Р’РЅРµС€РЅРѕСЃС‚СЊ Рё Р±РѕРЅСѓСЃС‹</strong></div>
     <div class="coins"><svg><use href="#i-coin"></use></svg>{{ profile.coins }}</div>
 </section>
 <section class="quick-grid">
-    <a class="button ghost" href="{% url 'shop' %}">Предметы</a>
-    <a class="button ghost" href="{% url 'wardrobe' %}">Гардероб</a>
+    <a class="button ghost" href="{% url 'shop' %}">РџСЂРµРґРјРµС‚С‹</a>
+    <a class="button ghost" href="{% url 'wardrobe' %}">Р“Р°СЂРґРµСЂРѕР±</a>
 </section>
 <section class="item-grid">
     {% for wearable in wearables %}
@@ -17,17 +17,17 @@
             <p>{{ wearable.description }}</p>
             <div class="effect-list">
                 <span>{{ wearable.get_slot_display }}</span>
-                <span>Красота +{{ wearable.beauty_bonus }}</span>
-                {% if wearable.mood_bonus %}<span>Настроение +{{ wearable.mood_bonus }}</span>{% endif %}
-                {% if wearable.show_bonus %}<span>Показ +{{ wearable.show_bonus }}</span>{% endif %}
+                <span>РљСЂР°СЃРѕС‚Р° +{{ wearable.beauty_bonus }}</span>
+                {% if wearable.mood_bonus %}<span>РќР°СЃС‚СЂРѕРµРЅРёРµ +{{ wearable.mood_bonus }}</span>{% endif %}
+                {% if wearable.show_bonus %}<span>РџРѕРєР°Р· +{{ wearable.show_bonus }}</span>{% endif %}
             </div>
             <form method="post" action="{% url 'buy_wearable' wearable.id %}">
                 {% csrf_token %}
-                <button class="button primary" type="submit">Купить за {{ wearable.price }}</button>
+                <button class="button primary" type="submit">РљСѓРїРёС‚СЊ Р·Р° {{ wearable.price }}</button>
             </form>
         </article>
     {% empty %}
-        <p class="muted">Одежда появится после seed-команды.</p>
+        <p class="muted">Одежда появится после загрузки демо-данных.</p>
     {% endfor %}
 </section>
 {% endblock %}

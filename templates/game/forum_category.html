@@ -2,17 +2,17 @@
 {% block title %}{{ category.name }} - Cozy Paws{% endblock %}
 {% block content %}
 <section class="summary-row">
-    <div><span class="eyebrow">Forum</span><strong>{{ category.name }}</strong></div>
-    <a class="button ghost" href="{% url 'forum' %}">Back</a>
+    <div><span class="eyebrow">Форум</span><strong>{{ category.name }}</strong></div>
+    <a class="button ghost" href="{% url 'forum' %}">Назад</a>
 </section>
 
 <section class="panel">
-    <div class="section-head"><h2>New thread</h2><span class="badge">{{ threads|length }}</span></div>
+    <div class="section-head"><h2>Новая тема</h2><span class="badge">{{ threads|length }}</span></div>
     <form class="stack-form" method="post" action="{% url 'create_forum_thread' category.id %}">
         {% csrf_token %}
-        <p><label>Title</label><input name="title" maxlength="120" required></p>
-        <p><label>Text</label><textarea name="body" maxlength="1200" required></textarea></p>
-        <button class="button primary" type="submit">Create</button>
+        <p><label>Название</label><input name="title" maxlength="120" required></p>
+        <p><label>Текст</label><textarea name="body" maxlength="1200" required></textarea></p>
+        <button class="button primary" type="submit">Создать</button>
     </form>
 </section>
 
@@ -20,11 +20,11 @@
     {% for thread in threads %}
         <article class="rating-row">
             <span class="rank">{{ forloop.counter }}</span>
-            <div><strong><a href="{% url 'forum_thread' thread.id %}">{{ thread.title }}</a></strong><span>{{ thread.post_count }} posts{% if thread.pinned %} · pinned{% endif %}</span></div>
-            <span class="active-dot">{{ thread.updated_at|date:"d M" }}</span>
+            <div><strong><a href="{% url 'forum_thread' thread.id %}">{{ thread.title }}</a></strong><span>{{ thread.post_count }} постов{% if thread.pinned %} · закреплено{% endif %}</span></div>
+            <span class="active-dot">{{ thread.updated_at|date:"d.m" }}</span>
         </article>
     {% empty %}
-        <section class="empty-state"><p>No threads in this category.</p></section>
+        <section class="empty-state"><p>В этой категории пока нет тем.</p></section>
     {% endfor %}
 </section>
 {% endblock %}

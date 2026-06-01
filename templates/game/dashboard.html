@@ -1,180 +1,156 @@
 {% extends "base.html" %}
 {% load static %}
 {% block title %}Питомец - Cozy Paws{% endblock %}
+{% block body_class %}screen-dashboard{% endblock %}
 {% block content %}
-<section class="resource-strip" aria-label="Ресурсы игрока">
-    <div>
-        <span>Сердца</span>
-        <strong><svg><use href="#i-heart"></use></svg>{{ profile.hearts }}</strong>
-    </div>
-    <div>
-        <span>Монеты</span>
-        <strong><svg><use href="#i-coin"></use></svg>{{ profile.coins }}</strong>
-    </div>
-    <a class="mini-button" href="{% url 'shop' %}">Магазин</a>
-</section>
-
 {% if pet %}
-<div class="dashboard-grid">
-    <div class="dashboard-main">
-        <section class="sanctuary-card">
-            <img src="{% static 'game/img/sanctuary-mint.png' %}" alt="Питомец в уютном домике">
-            <div class="pet-glass">
-                <div>
-                    <span class="eyebrow">{{ pet.get_species_display }}</span>
-                    <h1>{{ pet.name }}</h1>
-                </div>
-                <a class="edit-link" href="{% url 'create_pet' %}" aria-label="Добавить питомца">+</a>
-                <div class="xp glass-span">
-                    <div class="xp-label"><span>Уровень {{ pet.level }}</span><span>{{ pet.experience_percent }}%</span></div>
-                    <div class="bar"><span style="width: {{ pet.experience_percent }}%"></span></div>
-                </div>
-                <div class="stat-rail glass-span">
-                    <div><span>Настроение</span><strong>{{ pet.mood }}/100</strong></div>
-                    <div><span>Энергия</span><strong>{{ pet.energy }}/100</strong></div>
-                    <div><span>Сытость</span><strong>{{ pet.hunger }}/100</strong></div>
-                    <div><span>Связь</span><strong>{{ pet.bond_level }} ур.</strong></div>
-                </div>
+<section class="pet-app" aria-label="Cozy Paws">
+    <header class="pet-topbar">
+        <a class="pet-logo" href="{% url 'dashboard' %}">Cozy Paws <span>🐾</span></a>
+        <div class="pet-wallet" aria-label="Ресурсы">
+            <div class="wallet-item">
+                <span class="wallet-icon heart">❤</span>
+                <span><small>Сердца</small><strong>{{ profile.hearts }}</strong></span>
+                <a href="{% url 'gifts' %}" aria-label="Получить сердца">+</a>
             </div>
-            <div class="floating-reward">
-                <svg><use href="#i-heart"></use></svg>
-                <span>+10</span>
+            <div class="wallet-item">
+                <span class="wallet-icon coin">◉</span>
+                <span><small>Монеты</small><strong>{{ profile.coins }}</strong></span>
+                <a href="{% url 'shop' %}" aria-label="Пополнить монеты">+</a>
             </div>
-        </section>
+        </div>
+        <a class="menu-button" href="{% url 'game_settings' %}" aria-label="Меню">☰</a>
+    </header>
 
-        <section class="care-dock">
-            <div class="section-head">
-                <h2>Забота</h2>
-                <a href="{% url 'inventory' %}">Инвентарь</a>
-            </div>
-            <div class="care-actions">
-                <form method="post" action="{% url 'pet_action' 'pet' %}">{% csrf_token %}<button class="care-tile" type="submit"><svg><use href="#i-heart"></use></svg>Погладить</button></form>
-                <form method="post" action="{% url 'pet_action' 'feed' %}">{% csrf_token %}<button class="care-tile" type="submit"><svg><use href="#i-bag"></use></svg>Покормить</button></form>
-                <form method="post" action="{% url 'pet_action' 'walk' %}">{% csrf_token %}<button class="care-tile" type="submit"><svg><use href="#i-paw"></use></svg>Гулять</button></form>
-                <form method="post" action="{% url 'pet_action' 'play' %}">{% csrf_token %}<button class="care-tile" type="submit"><svg><use href="#i-star"></use></svg>Поиграть</button></form>
-            </div>
-        </section>
+    <div class="pet-scene">
+        <img src="{% static 'game/img/sanctuary-mint.png' %}" alt="{{ pet.name }} дома">
 
-        <section class="memory-quest-grid">
-            <article class="memory-panel">
-                <div class="section-head">
-                    <div>
-                        <h2>Тропа памяти</h2>
-                        <p>История {{ pet.name }} пишется каждый день</p>
-                    </div>
-                    <a class="round-info" href="{% url 'memory_trail' %}">i</a>
-                </div>
-                {% if todays_memory %}
-                    <div class="memory-book">
-                        <strong>{{ todays_memory.title }}</strong>
-                        <span>{{ todays_memory.story }}</span>
-                    </div>
-                    <a class="button ghost" href="{% url 'memory_trail' %}">Открыть альбом</a>
-                {% elif memory_prompt %}
-                    <div class="memory-book">
-                        <strong>{{ memory_prompt.title }}</strong>
-                        <span>{{ memory_prompt.description }}</span>
-                    </div>
-                    <form method="post" action="{% url 'create_memory' memory_prompt.id %}">
-                        {% csrf_token %}
-                        <button class="button primary" type="submit">Создать главу</button>
-                    </form>
-                {% else %}
-                    <p class="muted">Запусти seed-команду, чтобы открыть Тропу памяти.</p>
-                {% endif %}
-            </article>
-
-            <article class="panel flush-panel">
-                <div class="section-head">
-                    <h2>Задания</h2>
-                    <a href="{% url 'quests' %}">Все</a>
-                </div>
-                {% for progress in quest_progress %}
-                    <div class="quest-line">
-                        <span>{{ progress.quest.title }}</span>
-                        <strong>{{ progress.count }}/{{ progress.quest.target_count }}</strong>
-                    </div>
-                {% empty %}
-                    <p class="muted">Запусти seed-команду, чтобы добавить задания.</p>
-                {% endfor %}
-            </article>
-        </section>
-
-        <section class="club-callout">
-            <div class="crest"><svg><use href="#i-star"></use></svg></div>
-            <div>
-                <h2>Клуб</h2>
-                <p>Общайся, помогай и показывай лучшие главы друзьям.</p>
+        <article class="pet-status-card">
+            <div class="pet-status-title">
+                <h1>🌿 {{ pet.name }}</h1>
+                <a href="{% url 'create_pet' %}" aria-label="Редактировать питомца">✎</a>
             </div>
-            <a class="button primary" href="{% url 'clubs' %}">Вступить</a>
-        </section>
+            <div class="level-row">
+                <span>Уровень {{ pet.level }}</span>
+                <strong>{{ pet.experience_percent }}%</strong>
+            </div>
+            <div class="mini-bar"><span style="width: {{ pet.experience_percent }}%"></span></div>
+
+            <div class="status-metric">
+                <span>🙂 Счастье</span>
+                <div class="mini-bar"><span style="width: {{ pet.mood }}%"></span></div>
+                <strong>{{ pet.mood }}/100</strong>
+            </div>
+            <div class="status-metric">
+                <span>⚡ Энергия</span>
+                <div class="mini-bar amber"><span style="width: {{ pet.energy }}%"></span></div>
+                <strong>{{ pet.energy }}/100</strong>
+            </div>
+            <div class="status-metric">
+                <span>🥗 Сытость</span>
+                <div class="mini-bar"><span style="width: {{ pet.hunger }}%"></span></div>
+                <strong>{{ pet.hunger }}/100</strong>
+            </div>
+            <div class="status-metric">
+                <span>💧 Чистота</span>
+                <div class="mini-bar"><span style="width: 91%"></span></div>
+                <strong>91/100</strong>
+            </div>
+            <a class="details-link" href="{% url 'profile' %}">Подробнее <span>›</span></a>
+        </article>
+
+        <nav class="scene-actions" aria-label="Быстрые действия">
+            <a href="{% url 'gifts' %}"><span class="bubble-icon gift">🎁</span><strong>Награды</strong></a>
+            <a href="{% url 'quests' %}"><span class="bubble-icon daily">✓</span><strong>Ежедневно</strong></a>
+            <a href="{% url 'memory_trail' %}"><span class="bubble-icon camera">◉</span><strong>История</strong></a>
+        </nav>
+
+        <div class="heart-pop">❤<span>+10</span></div>
     </div>
 
-    <aside class="dashboard-side">
-        <section class="quick-grid">
-            <a class="button ghost" href="{% url 'training' %}">Тренировки</a>
-            <a class="button ghost" href="{% url 'shows' %}">Выставки</a>
-            <a class="button ghost" href="{% url 'explore' %}">Поляна</a>
-            <a class="button ghost" href="{% url 'adventures' %}">Маршруты</a>
-            <a class="button ghost" href="{% url 'competitions' %}">Лиги</a>
-            <a class="button ghost" href="{% url 'chests' %}">Сундуки</a>
-            <a class="button ghost" href="{% url 'gifts' %}">Подарки</a>
-            <a class="button ghost" href="{% url 'collections' %}">Коллекции</a>
-            <a class="button ghost" href="{% url 'fragments' %}">Сад</a>
-            <a class="button ghost" href="{% url 'forum' %}">Форум</a>
-            <a class="button ghost" href="{% url 'profile' %}">Профиль</a>
-            <a class="button ghost" href="{% url 'game_settings' %}">Настройки</a>
-        </section>
+    <section class="care-sheet">
+        <h2>🌿 Забота</h2>
+        <div class="care-grid">
+            <form method="post" action="{% url 'pet_action' 'pet' %}">
+                {% csrf_token %}
+                <button class="care-card" type="submit"><span>💞</span><strong>Погладить</strong><em>❤ +10</em></button>
+            </form>
+            <form method="post" action="{% url 'pet_action' 'feed' %}">
+                {% csrf_token %}
+                <button class="care-card" type="submit"><span>🥗</span><strong>Покормить</strong><em>❤ -10</em></button>
+            </form>
+            <form method="post" action="{% url 'pet_action' 'walk' %}">
+                {% csrf_token %}
+                <button class="care-card" type="submit"><span>🚿</span><strong>Помыть</strong><em>❤ -15</em></button>
+            </form>
+            <form method="post" action="{% url 'pet_action' 'play' %}">
+                {% csrf_token %}
+                <button class="care-card" type="submit"><span>🧶</span><strong>Поиграть</strong><em>❤ -10</em></button>
+            </form>
+        </div>
+    </section>
 
-        <section class="panel">
-            <div class="section-head">
-                <h2>Мои питомцы</h2>
-                <a href="{% url 'create_pet' %}">Добавить</a>
+    <div class="pet-card-grid">
+        <article class="memory-widget">
+            <div class="widget-head">
+                <div>
+                    <h2>📖 Тропа памяти</h2>
+                    <p>История {{ pet.name }} пишется каждый день</p>
+                </div>
+                <a href="{% url 'memory_trail' %}">i</a>
             </div>
-            <div class="pet-list">
-                {% for owned_pet in pets %}
-                    <div class="mini-pet">
-                        <span class="mini-face {{ owned_pet.species }}"></span>
-                        <div>
-                            <strong>{{ owned_pet.name }}</strong>
-                            <span>Уровень {{ owned_pet.level }} · связь {{ owned_pet.bond_level }}</span>
-                        </div>
-                        {% if owned_pet.active %}
-                            <span class="active-dot">Выбран</span>
-                        {% else %}
-                            <a class="mini-link" href="{% url 'select_pet' owned_pet.id %}">Выбрать</a>
-                        {% endif %}
+            <div class="open-book">
+                <div class="book-page pet-page">🦊</div>
+                <div class="book-page garden-page">🌿</div>
+            </div>
+            {% if memory_prompt %}
+                <form method="post" action="{% url 'create_memory' memory_prompt.id %}">
+                    {% csrf_token %}
+                    <button class="chapter-button" type="submit">Создать главу ✎</button>
+                </form>
+            {% else %}
+                <a class="chapter-button" href="{% url 'memory_trail' %}">Открыть альбом ✎</a>
+            {% endif %}
+        </article>
+
+        <article class="quest-widget">
+            <div class="widget-head">
+                <h2>📋 Задания</h2>
+                <a href="{% url 'quests' %}">Смотреть все</a>
+            </div>
+            {% for progress in quest_progress %}
+                <div class="dash-quest">
+                    <span class="quest-emoji">{% cycle '🪴' '📷' '🧶' %}</span>
+                    <div>
+                        <strong>{{ progress.quest.title }}</strong>
+                        <small>{{ progress.count }}/{{ progress.quest.target_count }}</small>
+                        <div class="quest-progress"><span style="width: {% widthratio progress.count progress.quest.target_count 100 %}%"></span></div>
                     </div>
-                {% endfor %}
-            </div>
-        </section>
+                    <em>❤ +{{ progress.quest.reward_coins }}</em>
+                </div>
+            {% empty %}
+                <p class="muted">Задания появятся после загрузки демо-данных.</p>
+            {% endfor %}
+        </article>
+    </div>
 
-        <section class="panel">
-            <div class="section-head">
-                <h2>Мир</h2>
-                <a href="{% url 'chat' %}">Чат</a>
-            </div>
-            <div class="quest-line"><span>Игроков онлайн</span><strong>{{ online_count }}</strong></div>
-            <div class="quest-line"><span>Глав памяти</span><strong>{{ memory_count }}</strong></div>
-        </section>
+    <section class="club-strip">
+        <div class="club-badge">🛡️</div>
+        <div>
+            <h2>Клуб</h2>
+            <p>Общайся, помогай и получай подарки вместе с друзьями!</p>
+        </div>
+        <div class="club-faces"><span>🦊</span><span>👧</span><span>🐺</span><b>23</b></div>
+        <a href="{% url 'clubs' %}">Вступить</a>
+    </section>
 
-        <section class="panel">
-            <div class="section-head">
-                <h2>Журнал</h2>
-                <a href="{% url 'profile' %}">История</a>
-            </div>
-            <div class="log-list">
-                {% for log in logs %}
-                    <div class="log-line">
-                        <span>{{ log.created_at|date:"H:i" }}</span>
-                        <strong>{{ log.text }}</strong>
-                    </div>
-                {% empty %}
-                    <p class="muted">Здесь появятся игровые события.</p>
-                {% endfor %}
-            </div>
-        </section>
-    </aside>
-</div>
+    <nav class="pet-tabbar" aria-label="Основная навигация">
+        <a class="active" href="{% url 'dashboard' %}"><svg class="tab-icon"><use href="#i-home"></use></svg><span>Дом</span></a>
+        <a href="{% url 'explore' %}"><svg class="tab-icon"><use href="#i-map"></use></svg><span>Карта</span></a>
+        <a href="{% url 'social' %}"><svg class="tab-icon"><use href="#i-users"></use></svg><span>Друзья</span></a>
+        <a href="{% url 'shop' %}"><svg class="tab-icon"><use href="#i-shop"></use></svg><span>Магазин</span></a>
+        <a href="{% url 'profile' %}"><svg class="tab-icon"><use href="#i-paw"></use></svg><span>Профиль</span></a>
+    </nav>
+</section>
 {% endif %}
 {% endblock %}

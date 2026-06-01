@@ -2,7 +2,7 @@
 {% block title %}Поддержка - Cozy Paws{% endblock %}
 {% block content %}
 <section class="auth-card">
-    <div class="section-head"><h1>Поддержка</h1><a href="{% url 'help_center' %}">Help center</a></div>
+    <div class="section-head"><h1>Поддержка</h1><a href="{% url 'help_center' %}">Справка</a></div>
     <form method="post" class="stack-form">
         {% csrf_token %}
         {{ form.as_p }}

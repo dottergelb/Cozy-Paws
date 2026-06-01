@@ -1,10 +1,10 @@
-{% extends "base.html" %}
-{% block title %}Тропа памяти - Cozy Paws{% endblock %}
+﻿{% extends "base.html" %}
+{% block title %}РўСЂРѕРїР° РїР°РјСЏС‚Рё - Cozy Paws{% endblock %}
 {% block content %}
 <section class="summary-row memory-summary">
     <div>
-        <span class="eyebrow">Тропа памяти</span>
-        <strong>{% if pet %}{{ pet.name }} · связь {{ pet.bond_level }} ур.{% else %}Нет активного питомца{% endif %}</strong>
+        <span class="eyebrow">РўСЂРѕРїР° РїР°РјСЏС‚Рё</span>
+        <strong>{% if pet %}{{ pet.name }} В· СЃРІСЏР·СЊ {{ pet.bond_level }} СѓСЂ.{% else %}РќРµС‚ Р°РєС‚РёРІРЅРѕРіРѕ РїРёС‚РѕРјС†Р°{% endif %}</strong>
     </div>
     <div class="coins"><svg><use href="#i-heart"></use></svg>{{ profile.hearts }}</div>
 </section>
@@ -15,11 +15,11 @@
     <h1>{{ todays_memory.title }}</h1>
     <p>{{ todays_memory.story }}</p>
     <div class="effect-list">
-        <span>Монеты +{{ todays_memory.reward_coins }}</span>
-        <span>Сердца +{{ todays_memory.reward_hearts }}</span>
-        <span>Опыт +{{ todays_memory.reward_experience }}</span>
-        <span>Связь +{{ todays_memory.bond_delta }}</span>
-        {% if todays_memory.boosted %}<span>Премиальная искра</span>{% endif %}
+        <span>РњРѕРЅРµС‚С‹ +{{ todays_memory.reward_coins }}</span>
+        <span>РЎРµСЂРґС†Р° +{{ todays_memory.reward_hearts }}</span>
+        <span>РћРїС‹С‚ +{{ todays_memory.reward_experience }}</span>
+        <span>РЎРІСЏР·СЊ +{{ todays_memory.bond_delta }}</span>
+        {% if todays_memory.boosted %}<span>РџСЂРµРјРёР°Р»СЊРЅР°СЏ РёСЃРєСЂР°</span>{% endif %}
     </div>
 </section>
 {% endif %}
@@ -27,8 +27,8 @@
 <section class="panel">
     <div class="section-head">
         <div>
-            <h2>Создать главу</h2>
-            <p class="muted">Одна глава в день. Премиальная искра усиливает опыт и связь, но не ломает баланс.</p>
+            <h2>РЎРѕР·РґР°С‚СЊ РіР»Р°РІСѓ</h2>
+            <p class="muted">РћРґРЅР° РіР»Р°РІР° РІ РґРµРЅСЊ. РџСЂРµРјРёР°Р»СЊРЅР°СЏ РёСЃРєСЂР° СѓСЃРёР»РёРІР°РµС‚ РѕРїС‹С‚ Рё СЃРІСЏР·СЊ, РЅРѕ РЅРµ Р»РѕРјР°РµС‚ Р±Р°Р»Р°РЅСЃ.</p>
         </div>
     </div>
     <div class="item-grid">
@@ -39,43 +39,43 @@
                 <p>{{ prompt.description }}</p>
                 <div class="effect-list">
                     <span>{{ prompt.get_theme_display }}</span>
-                    <span>Энергия {{ prompt.energy_cost }}</span>
-                    {% if prompt.coin_cost %}<span>Вход {{ prompt.coin_cost }}</span>{% endif %}
-                    <span>Связь +{{ prompt.bond_delta }}</span>
-                    <span>Опыт +{{ prompt.reward_experience }}</span>
+                    <span>Р­РЅРµСЂРіРёСЏ {{ prompt.energy_cost }}</span>
+                    {% if prompt.coin_cost %}<span>Р’С…РѕРґ {{ prompt.coin_cost }}</span>{% endif %}
+                    <span>РЎРІСЏР·СЊ +{{ prompt.bond_delta }}</span>
+                    <span>РћРїС‹С‚ +{{ prompt.reward_experience }}</span>
                 </div>
                 <form method="post" action="{% url 'create_memory' prompt.id %}">
                     {% csrf_token %}
-                    <button class="button primary" type="submit" {% if not available_today %}disabled{% endif %}>Создать главу</button>
+                    <button class="button primary" type="submit" {% if not available_today %}disabled{% endif %}>РЎРѕР·РґР°С‚СЊ РіР»Р°РІСѓ</button>
                 </form>
                 {% if prompt.heart_boost_cost %}
                     <form method="post" action="{% url 'create_memory' prompt.id %}">
                         {% csrf_token %}
                         <input type="hidden" name="boosted" value="1">
-                        <button class="button ghost" type="submit" {% if not available_today %}disabled{% endif %}>Искра за {{ prompt.heart_boost_cost }} сердец</button>
+                        <button class="button ghost" type="submit" {% if not available_today %}disabled{% endif %}>РСЃРєСЂР° Р·Р° {{ prompt.heart_boost_cost }} СЃРµСЂРґРµС†</button>
                     </form>
                 {% endif %}
             </article>
         {% empty %}
-            <p class="muted">Промптов памяти пока нет. Запусти seed-команду.</p>
+            <p class="muted">Промптов памяти пока нет. Загрузи демо-данные.</p>
         {% endfor %}
     </div>
 </section>
 
 <section class="panel">
     <div class="section-head">
-        <h2>Альбом</h2>
+        <h2>РђР»СЊР±РѕРј</h2>
         <span class="badge">{{ chapters|length }}</span>
     </div>
     <div class="memory-timeline">
         {% for chapter in chapters %}
             <article class="timeline-card">
-                <span>{{ chapter.date|date:"d M" }} · {{ chapter.pet.name }}</span>
+                <span>{{ chapter.date|date:"d M" }} В· {{ chapter.pet.name }}</span>
                 <strong>{{ chapter.title }}</strong>
                 <p>{{ chapter.story }}</p>
             </article>
         {% empty %}
-            <p class="muted">Первая глава появится после создания воспоминания.</p>
+            <p class="muted">РџРµСЂРІР°СЏ РіР»Р°РІР° РїРѕСЏРІРёС‚СЃСЏ РїРѕСЃР»Рµ СЃРѕР·РґР°РЅРёСЏ РІРѕСЃРїРѕРјРёРЅР°РЅРёСЏ.</p>
         {% endfor %}
     </div>
 </section>

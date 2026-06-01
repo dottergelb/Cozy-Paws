@@ -2,22 +2,22 @@
 {% block title %}{{ club.name }} - Cozy Paws{% endblock %}
 {% block content %}
 <section class="summary-row">
-    <div><span class="eyebrow">Club level {{ club.level }}</span><strong>{{ club.name }}</strong></div>
+    <div><span class="eyebrow">Клуб · уровень {{ club.level }}</span><strong>{{ club.name }}</strong></div>
     <div class="coins">{{ club.member_count }}/{{ club.member_limit }}</div>
 </section>
 
 <section class="panel">
-    <p class="muted">{{ club.description|default:"No club description yet." }}</p>
+    <p class="muted">{{ club.description|default:"У клуба пока нет описания." }}</p>
     <div class="effect-list">
-        <span>XP {{ club.experience }}</span>
-        <span>Coins {{ club.coins }}</span>
-        <span>Hearts {{ club.hearts }}</span>
+        <span>Опыт {{ club.experience }}</span>
+        <span>Монеты {{ club.coins }}</span>
+        <span>Сердечки {{ club.hearts }}</span>
     </div>
     {% if not membership %}
         <form method="post" action="{% url 'request_club_join' club.id %}">
             {% csrf_token %}
-            <input name="message" maxlength="160" placeholder="Short join note">
-            <button class="button primary" type="submit">Request to join</button>
+            <input name="message" maxlength="160" placeholder="Короткая записка для заявки">
+            <button class="button primary" type="submit">Подать заявку</button>
         </form>
     {% else %}
         <form class="stack-form" method="post" action="{% url 'contribute_club' club.id %}">
@@ -26,18 +26,18 @@
                 <input name="coins" type="number" min="0" value="0">
                 <input name="hearts" type="number" min="0" value="0">
             </div>
-            <button class="button primary" type="submit">Contribute</button>
+            <button class="button primary" type="submit">Внести ресурсы</button>
         </form>
     {% endif %}
 </section>
 
 <section class="panel">
-    <div class="section-head"><h2>Buildings</h2></div>
+    <div class="section-head"><h2>Здания</h2></div>
     <div class="pet-list">
         {% for building in buildings %}
             <div class="mini-pet">
                 <span class="rank">{{ building.level }}</span>
-                <div><strong>{{ building.building_type.name }}</strong><span>{{ building.building_type.description }} · bonus +{{ building.bonus }}</span></div>
+                <div><strong>{{ building.building_type.name }}</strong><span>{{ building.building_type.description }} · бонус +{{ building.bonus }}</span></div>
                 {% if membership.role == "owner" or membership.role == "deputy" %}
                     <form method="post" action="{% url 'upgrade_club_building' building.id %}">
                         {% csrf_token %}
@@ -51,31 +51,31 @@
 
 {% if membership.role == "owner" or membership.role == "deputy" or membership.role == "officer" %}
 <section class="panel">
-    <div class="section-head"><h2>Announcement</h2></div>
+    <div class="section-head"><h2>Объявление</h2></div>
     <form class="stack-form" method="post" action="{% url 'post_club_announcement' club.id %}">
         {% csrf_token %}
-        <p><label>Text</label><input name="body" maxlength="240" required></p>
-        <button class="button primary" type="submit">Post</button>
+        <p><label>Текст</label><input name="body" maxlength="240" required></p>
+        <button class="button primary" type="submit">Опубликовать</button>
     </form>
 </section>
 {% endif %}
 
 <section class="panel">
-    <div class="section-head"><h2>Announcements</h2></div>
+    <div class="section-head"><h2>Объявления</h2></div>
     <div class="log-list">
         {% for item in announcements %}
             <div class="log-line"><span>{{ item.created_at|date:"d.m H:i" }}</span><strong>{{ item.body }}</strong></div>
-        {% empty %}<p class="muted">No announcements yet.</p>{% endfor %}
+        {% empty %}<p class="muted">Объявлений пока нет.</p>{% endfor %}
     </div>
 </section>
 
 <section class="panel">
-    <div class="section-head"><h2>Members</h2></div>
+    <div class="section-head"><h2>Участники</h2></div>
     <div class="pet-list">
         {% for member in members %}
             <div class="mini-pet">
                 <span class="mini-face cat"></span>
-                <div><strong>{{ member.profile.public_name }}</strong><span>{{ member.get_role_display }} · {{ member.contribution_score }} contribution</span></div>
+                <div><strong>{{ member.profile.public_name }}</strong><span>{{ member.get_role_display }} · вклад {{ member.contribution_score }}</span></div>
                 <span class="quantity">{{ member.joined_at|date:"d.m" }}</span>
             </div>
         {% endfor %}
@@ -84,28 +84,28 @@
 
 {% if membership.role == "owner" or membership.role == "deputy" %}
 <section class="panel">
-    <div class="section-head"><h2>Join requests</h2></div>
+    <div class="section-head"><h2>Заявки</h2></div>
     <div class="pet-list">
         {% for request_item in join_requests %}
             <div class="mini-pet">
                 <span class="mini-face bunny"></span>
-                <div><strong>{{ request_item.profile.public_name }}</strong><span>{{ request_item.message|default:"No message" }}</span></div>
+                <div><strong>{{ request_item.profile.public_name }}</strong><span>{{ request_item.message|default:"Без сообщения" }}</span></div>
                 <form method="post" action="{% url 'accept_club_join' request_item.id %}">
                     {% csrf_token %}
-                    <button class="mini-button" type="submit">Accept</button>
+                    <button class="mini-button" type="submit">Принять</button>
                 </form>
             </div>
-        {% empty %}<p class="muted">No pending requests.</p>{% endfor %}
+        {% empty %}<p class="muted">Ожидающих заявок нет.</p>{% endfor %}
     </div>
 </section>
 {% endif %}
 
 <section class="panel">
-    <div class="section-head"><h2>History</h2></div>
+    <div class="section-head"><h2>История</h2></div>
     <div class="log-list">
         {% for event in history %}
             <div class="log-line"><span>{{ event.created_at|date:"d.m H:i" }}</span><strong>{{ event.text }}</strong></div>
-        {% empty %}<p class="muted">No history yet.</p>{% endfor %}
+        {% empty %}<p class="muted">Истории пока нет.</p>{% endfor %}
     </div>
 </section>
 {% endblock %}

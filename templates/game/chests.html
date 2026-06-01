@@ -1,8 +1,8 @@
 {% extends "base.html" %}
-{% block title %}Chests - Cozy Paws{% endblock %}
+{% block title %}Сундуки - Cozy Paws{% endblock %}
 {% block content %}
 <section class="summary-row">
-    <div><span class="eyebrow">Chests</span><strong>Spend hearts for surprise rewards</strong></div>
+    <div><span class="eyebrow">Сундуки</span><strong>Трать сердечки на случайные награды</strong></div>
     <div class="coins"><svg><use href="#i-star"></use></svg>{{ profile.hearts }}</div>
 </section>
 
@@ -13,27 +13,27 @@
             <h2>{{ row.chest.name }}</h2>
             <p>{{ row.chest.description }}</p>
             <div class="effect-list">
-                <span>Cost {{ row.chest.key_cost }} hearts</span>
-                <span>{{ row.left }}/{{ row.chest.daily_limit }} today</span>
-                <span>{{ row.chest.min_coins }}-{{ row.chest.max_coins }} coins</span>
+                <span>Цена {{ row.chest.key_cost }} сердечек</span>
+                <span>Сегодня {{ row.left }}/{{ row.chest.daily_limit }}</span>
+                <span>{{ row.chest.min_coins }}-{{ row.chest.max_coins }} монет</span>
             </div>
             <form method="post" action="{% url 'open_chest' row.chest.id %}">
                 {% csrf_token %}
-                <button class="button primary" type="submit" {% if row.left == 0 %}disabled{% endif %}>Open</button>
+                <button class="button primary" type="submit" {% if row.left == 0 %}disabled{% endif %}>Открыть</button>
             </form>
         </article>
     {% empty %}
-        <section class="empty-state"><p>No chests configured yet.</p></section>
+        <section class="empty-state"><p>Сундуки пока не настроены.</p></section>
     {% endfor %}
 </section>
 
 <section class="panel">
-    <div class="section-head"><h2>Recent rewards</h2><span class="badge">{{ openings|length }}</span></div>
+    <div class="section-head"><h2>Последние награды</h2><span class="badge">{{ openings|length }}</span></div>
     <div class="log-list">
         {% for opening in openings %}
             <div class="log-line"><span>{{ opening.created_at|date:"H:i" }} · {{ opening.chest_type.name }}</span><strong>{{ opening.reward_text }}</strong></div>
         {% empty %}
-            <p class="muted">Open a chest to start the reward feed.</p>
+            <p class="muted">Открой сундук, чтобы начать ленту наград.</p>
         {% endfor %}
     </div>
 </section>

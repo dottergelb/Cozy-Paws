@@ -1,9 +1,9 @@
 {% extends "base.html" %}
-{% block title %}Help - Cozy Paws{% endblock %}
+{% block title %}Справка - Cozy Paws{% endblock %}
 {% block content %}
 <section class="summary-row">
-    <div><span class="eyebrow">Help center</span><strong>Guides and support topics</strong></div>
-    <a class="button ghost" href="{% url 'support' %}">Tickets</a>
+    <div><span class="eyebrow">Справка</span><strong>Гайды и темы поддержки</strong></div>
+    <a class="button ghost" href="{% url 'support' %}">Обращения</a>
 </section>
 
 <section class="panel">
@@ -13,7 +13,7 @@
             <p>{{ article.body|linebreaksbr }}</p>
         </article>
     {% empty %}
-        <p class="muted">No help articles yet.</p>
+        <p class="muted">Статьи справки пока не добавлены.</p>
     {% endfor %}
 </section>
 {% endblock %}

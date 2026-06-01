@@ -1,19 +1,19 @@
 {% extends "base.html" %}
-{% block title %}Clubs - Cozy Paws{% endblock %}
+{% block title %}Клубы - Cozy Paws{% endblock %}
 {% block content %}
 <section class="summary-row">
-    <div><span class="eyebrow">Clubs</span><strong>{% if current_club %}{{ current_club.name }}{% else %}Find your crew{% endif %}</strong></div>
+    <div><span class="eyebrow">Клубы</span><strong>{% if current_club %}{{ current_club.name }}{% else %}Найди свою команду{% endif %}</strong></div>
     <div class="coins"><svg><use href="#i-coin"></use></svg>{{ profile.coins }}</div>
 </section>
 
 {% if not current_club %}
 <section class="panel">
-    <div class="section-head"><h2>Create club</h2><span class="badge">250 coins</span></div>
+    <div class="section-head"><h2>Создать клуб</h2><span class="badge">250 монет</span></div>
     <form class="stack-form" method="post" action="{% url 'create_club' %}">
         {% csrf_token %}
-        <p><label>Name</label><input name="name" maxlength="80" required></p>
-        <p><label>Description</label><input name="description" maxlength="180"></p>
-        <button class="button primary" type="submit">Create</button>
+        <p><label>Название</label><input name="name" maxlength="80" required></p>
+        <p><label>Описание</label><input name="description" maxlength="180"></p>
+        <button class="button primary" type="submit">Создать</button>
     </form>
 </section>
 {% endif %}
@@ -24,12 +24,12 @@
             <span class="rank">{{ forloop.counter }}</span>
             <div>
                 <strong><a href="{% url 'club_detail' club.id %}">{{ club.name }}</a></strong>
-                <span>Level {{ club.level }} · {{ club.member_count }}/{{ club.member_limit }} members</span>
+                <span>Уровень {{ club.level }} · {{ club.member_count }}/{{ club.member_limit }} участников</span>
             </div>
             <span class="active-dot">{{ club.coins }}</span>
         </article>
     {% empty %}
-        <section class="empty-state"><p>No clubs yet.</p></section>
+        <section class="empty-state"><p>Клубов пока нет.</p></section>
     {% endfor %}
 </section>
 {% endblock %}

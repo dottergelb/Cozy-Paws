@@ -42,7 +42,7 @@ from game.models import (
 
 
 class Command(BaseCommand):
-    help = "Create starter shop items, daily quests, and an optional demo player."
+    help = "Создает стартовые предметы, ежедневные задания и демо-игрока."
 
     def handle(self, *args, **options):
         items = [
@@ -337,12 +337,12 @@ class Command(BaseCommand):
             Achievement.objects.update_or_create(code=data["code"], defaults=data)
 
         furniture_items = [
-            ("Cloud Nap Bed", "A soft corner that helps every pet feel at home.", FurnitureItem.BED, 65, 8, 1, "#75a7e6"),
-            ("Ribbon Toy Basket", "A tidy toy spot with a little style bonus.", FurnitureItem.TOY_CORNER, 55, 6, 0, "#ef7b6a"),
-            ("Sun Window", "Warm light for happier training days.", FurnitureItem.WINDOW, 80, 10, 1, "#f3b84b"),
-            ("Mossy Rug", "A calm green rug for quiet afternoons.", FurnitureItem.RUG, 45, 5, 0, "#45b08c"),
-            ("Pocket Fern", "A tiny plant that makes the room fresher.", FurnitureItem.PLANT, 50, 6, 0, "#23765d"),
-            ("Festival Poster", "A bright poster from a friendly pet show.", FurnitureItem.POSTER, 70, 9, 1, "#9b8ee8"),
+            ("Облачная лежанка", "Мягкий уголок, где питомец чувствует себя дома.", FurnitureItem.BED, 65, 8, 1, "#75a7e6"),
+            ("Корзина ленточных игрушек", "Аккуратное место для игрушек с небольшим бонусом стиля.", FurnitureItem.TOY_CORNER, 55, 6, 0, "#ef7b6a"),
+            ("Солнечное окно", "Теплый свет для радостных тренировочных дней.", FurnitureItem.WINDOW, 80, 10, 1, "#f3b84b"),
+            ("Мшистый ковер", "Спокойный зеленый ковер для тихих вечеров.", FurnitureItem.RUG, 45, 5, 0, "#45b08c"),
+            ("Карманный папоротник", "Маленькое растение, которое освежает комнату.", FurnitureItem.PLANT, 50, 6, 0, "#23765d"),
+            ("Праздничный постер", "Яркий постер с дружеской выставки питомцев.", FurnitureItem.POSTER, 70, 9, 1, "#9b8ee8"),
         ]
         for name, description, slot, price, beauty_bonus, xp_bonus_percent, color in furniture_items:
             FurnitureItem.objects.update_or_create(
@@ -359,9 +359,9 @@ class Command(BaseCommand):
             )
 
         collection_data = [
-            ("Picnic Memories", "Small keepsakes from sunny walks.", ["Map scrap", "Berry napkin", "Tiny cup", "Warm pebble"], 45, 8, 10),
-            ("Garden Charms", "Little charms found near flowers and moss.", ["Seed bell", "Leaf pin", "Dew bead", "Sprout ribbon"], 55, 10, 12),
-            ("Moon Trinkets", "Quiet night treasures for patient explorers.", ["Moon button", "Blue thread", "Star shard", "Silver shell"], 70, 14, 16),
+            ("Пикниковые воспоминания", "Маленькие сувениры с солнечных прогулок.", ["Кусочек карты", "Ягодная салфетка", "Крошечная чашка", "Теплый камешек"], 45, 8, 10),
+            ("Садовые талисманы", "Маленькие талисманы, найденные у цветов и мха.", ["Семенной колокольчик", "Листовая булавка", "Капля росы", "Лента ростка"], 55, 10, 12),
+            ("Лунные безделушки", "Тихие ночные сокровища для терпеливых исследователей.", ["Лунная пуговица", "Синяя нить", "Звездный осколок", "Серебряная ракушка"], 70, 14, 16),
         ]
         for name, description, pieces, reward_coins, reward_hearts, beauty_bonus in collection_data:
             collection, _ = CollectionSet.objects.update_or_create(
@@ -378,10 +378,10 @@ class Command(BaseCommand):
                 CollectionPiece.objects.update_or_create(collection=collection, order=index, defaults={"name": piece_name})
 
         trophies = [
-            ("First Show Ribbon", "Awarded for early show progress.", Trophy.MEDAL, "Домашний смотр", 5, 1, "#f3b84b"),
-            ("Neighborhood Cup", "A cup for steady performers.", Trophy.CUP, "Городской подиум", 12, 2, "#75a7e6"),
-            ("Grand Cozy Prize", "A rare prize for polished teams.", Trophy.PRIZE, "Большой финал", 20, 3, "#9b8ee8"),
-            ("Meadow Finder Badge", "Sometimes found during exploration.", Trophy.BADGE, "Explore", 7, 1, "#45b08c"),
+            ("Первая выставочная лента", "Выдается за первые успехи на выставках.", Trophy.MEDAL, "Домашний смотр", 5, 1, "#f3b84b"),
+            ("Кубок соседей", "Кубок для стабильных выступлений.", Trophy.CUP, "Городской подиум", 12, 2, "#75a7e6"),
+            ("Большой уютный приз", "Редкий приз для ухоженных команд.", Trophy.PRIZE, "Большой финал", 20, 3, "#9b8ee8"),
+            ("Значок искателя луга", "Иногда находится во время исследований.", Trophy.BADGE, "Исследования", 7, 1, "#45b08c"),
         ]
         for name, description, trophy_type, source, beauty_bonus, rarity, color in trophies:
             Trophy.objects.update_or_create(
@@ -397,9 +397,9 @@ class Command(BaseCommand):
             )
 
         sites = [
-            ("Soft Meadow", "A safe field with collection scraps and small rewards.", 1, 10, 0, 8, 8, 6),
-            ("Old Garden Path", "A better place for rare keepsakes.", 2, 16, 8, 14, 12, 4),
-            ("Moonlit Hill", "A late-game walk with better trophy odds.", 4, 24, 18, 24, 20, 3),
+            ("Мягкий луг", "Безопасная поляна с частями коллекций и небольшими наградами.", 1, 10, 0, 8, 8, 6),
+            ("Старая садовая тропа", "Лучшее место для редких сувениров.", 2, 16, 8, 14, 12, 4),
+            ("Лунный холм", "Поздний маршрут с повышенным шансом трофеев.", 4, 24, 18, 24, 20, 3),
         ]
         for name, description, min_level, energy_cost, coin_cost, reward_coins, reward_experience, daily_limit in sites:
             ExplorationSite.objects.update_or_create(
@@ -417,10 +417,10 @@ class Command(BaseCommand):
             )
 
         fragment_types = [
-            ("Rose Window Seeds", "A garden keepsake grown from trail fragments.", FragmentType.GARDEN, 4, 5, "#ef7b6a"),
-            ("Fern Lantern Sprouts", "Fresh green fragments for a calm home corner.", FragmentType.GARDEN, 5, 7, "#45b08c"),
-            ("Sapphire Paw Shards", "Small blue jewel pieces with a style bonus.", FragmentType.JEWEL, 5, 8, "#75a7e6"),
-            ("Amber Star Chips", "Warm jewel chips found in rare rewards.", FragmentType.JEWEL, 6, 10, "#f3b84b"),
+            ("Семена розового окна", "Садовая реликвия, выращенная из фрагментов тропы.", FragmentType.GARDEN, 4, 5, "#ef7b6a"),
+            ("Ростки папоротникового фонаря", "Свежие зеленые фрагменты для спокойного угла дома.", FragmentType.GARDEN, 5, 7, "#45b08c"),
+            ("Осколки сапфировой лапки", "Маленькие синие самоцветы с бонусом стиля.", FragmentType.JEWEL, 5, 8, "#75a7e6"),
+            ("Крошки янтарной звезды", "Теплые самоцветы из редких наград.", FragmentType.JEWEL, 6, 10, "#f3b84b"),
         ]
         for name, description, kind, required_fragments, beauty_bonus, color in fragment_types:
             FragmentType.objects.update_or_create(
@@ -435,9 +435,9 @@ class Command(BaseCommand):
             )
 
         adventures = [
-            ("Bakery Errand", "A quick walk past warm windows and friendly smells.", 1, 1, 8, 14, 1, 9),
-            ("Picnic Trail", "A longer route with better fragment chances.", 2, 3, 14, 28, 3, 18),
-            ("Lantern Bridge", "A calm evening adventure for trained pets.", 4, 5, 22, 55, 6, 30),
+            ("Поручение у пекарни", "Короткая прогулка мимо теплых окон и дружелюбных ароматов.", 1, 1, 8, 14, 1, 9),
+            ("Пикниковая тропа", "Более длинный маршрут с лучшим шансом фрагментов.", 2, 3, 14, 28, 3, 18),
+            ("Фонарный мост", "Спокойное вечернее приключение для тренированных питомцев.", 4, 5, 22, 55, 6, 30),
         ]
         for name, description, min_level, duration_minutes, energy_cost, reward_coins, reward_hearts, reward_experience in adventures:
             AdventureRoute.objects.update_or_create(
@@ -455,9 +455,9 @@ class Command(BaseCommand):
             )
 
         competitions = [
-            ("Ribbon Dash", "A light agility league for everyday training.", CompetitionMode.AGILITY, 1, 8, 18, 2),
-            ("Charm Parade", "A friendly stage where style and charm matter.", CompetitionMode.CHARM, 2, 16, 34, 4),
-            ("Cozy Care Cup", "A mood-focused league for well cared pets.", CompetitionMode.MOOD, 3, 24, 48, 6),
+            ("Ленточный рывок", "Легкая лига ловкости для ежедневных тренировок.", CompetitionMode.AGILITY, 1, 8, 18, 2),
+            ("Парад шарма", "Дружеская сцена, где важны стиль и шарм.", CompetitionMode.CHARM, 2, 16, 34, 4),
+            ("Кубок уютной заботы", "Лига настроения для ухоженных питомцев.", CompetitionMode.MOOD, 3, 24, 48, 6),
         ]
         for name, description, stat, min_level, entry_fee, reward_coins, reward_hearts in competitions:
             CompetitionMode.objects.update_or_create(
@@ -474,8 +474,8 @@ class Command(BaseCommand):
             )
 
         chests = [
-            ("Daily Ribbon Chest", "A small daily chest with coins and fragments.", 2, 3, 18, 42, "#ef7b6a"),
-            ("Garden Chest", "A better chest for garden and jewel progress.", 5, 2, 45, 95, "#45b08c"),
+            ("Ежедневный ленточный сундук", "Маленький ежедневный сундук с монетами и фрагментами.", 2, 3, 18, 42, "#ef7b6a"),
+            ("Садовый сундук", "Улучшенный сундук для сада и самоцветов.", 5, 2, 45, 95, "#45b08c"),
         ]
         for name, description, key_cost, daily_limit, min_coins, max_coins, color in chests:
             ChestType.objects.update_or_create(
@@ -491,9 +491,9 @@ class Command(BaseCommand):
             )
 
         gifts = [
-            ("Cozy Card", "A tiny card for a friendly player.", 3, "#75a7e6"),
-            ("Ribbon Bouquet", "A cheerful gift made for celebrations.", 6, "#ef7b6a"),
-            ("Star Cookie Box", "A sweet premium present.", 9, "#f3b84b"),
+            ("Уютная открытка", "Крошечная открытка для дружелюбного игрока.", 3, "#75a7e6"),
+            ("Ленточный букет", "Радостный подарок для праздников.", 6, "#ef7b6a"),
+            ("Коробка звездного печенья", "Сладкий премиальный подарок.", 9, "#f3b84b"),
         ]
         for name, description, price_hearts, color in gifts:
             GiftCatalogItem.objects.update_or_create(
@@ -502,18 +502,18 @@ class Command(BaseCommand):
             )
 
         help_articles = [
-            ("Basics", "Starting out", "Care for your active pet, finish daily quests, and use rewards to expand your home."),
-            ("Economy", "Coins and hearts", "Coins buy items and upgrades. Hearts open chests, train helpers, and send gifts."),
-            ("Progression", "Collections and fragments", "Exploration, adventures, and chests grant pieces that unlock permanent beauty bonuses."),
-            ("Clubs", "Club growth", "Club members donate resources, upgrade buildings, and coordinate through announcements."),
+            ("Основы", "Первые шаги", "Заботься об активном питомце, выполняй ежедневные задания и расширяй домик наградами."),
+            ("Экономика", "Монеты и сердечки", "Монеты покупают предметы и улучшения. Сердечки открывают сундуки, обучают помощников и отправляют подарки."),
+            ("Прогресс", "Коллекции и фрагменты", "Исследования, приключения и сундуки дают части, открывающие постоянные бонусы красоты."),
+            ("Клубы", "Рост клуба", "Участники клуба жертвуют ресурсы, улучшают здания и координируются через объявления."),
         ]
         for category, title, body in help_articles:
             HelpArticle.objects.update_or_create(title=title, defaults={"category": category, "body": body, "active": True})
 
         forum_categories = [
-            ("News Board", "Updates and announcements for local Cozy Paws testing.", True),
-            ("Keeper Talk", "General player discussion and tips.", False),
-            ("Help Desk", "Questions about pets, economy, clubs, and rewards.", False),
+            ("Доска новостей", "Обновления и объявления для локальной проверки Cozy Paws.", True),
+            ("Разговоры хранителей", "Общие обсуждения игроков и советы.", False),
+            ("Стол помощи", "Вопросы о питомцах, экономике, клубах и наградах.", False),
         ]
         seeded_categories = []
         for name, description, is_news in forum_categories:
@@ -521,10 +521,10 @@ class Command(BaseCommand):
             seeded_categories.append(category)
 
         assistants = [
-            ("Kind Caretaker", "Improves long-term care efficiency.", AssistantType.CARETAKER, 20, 20, 1),
-            ("Room Stylist", "Boosts style planning and room growth.", AssistantType.STYLIST, 24, 20, 1),
-            ("Trail Scout", "Improves exploration trophy chances.", AssistantType.SCOUT, 22, 20, 1),
-            ("Tiny Builder", "Helps with home and club construction.", AssistantType.BUILDER, 28, 20, 1),
+            ("Добрый заботник", "Улучшает эффективность долгосрочной заботы.", AssistantType.CARETAKER, 20, 20, 1),
+            ("Стилист комнаты", "Усиливает планирование стиля и развитие комнаты.", AssistantType.STYLIST, 24, 20, 1),
+            ("Разведчик троп", "Повышает шанс трофеев в исследованиях.", AssistantType.SCOUT, 22, 20, 1),
+            ("Маленький строитель", "Помогает в строительстве дома и клуба.", AssistantType.BUILDER, 28, 20, 1),
         ]
         for name, description, role, base_cost, max_level, bonus_per_level in assistants:
             AssistantType.objects.update_or_create(
@@ -539,11 +539,11 @@ class Command(BaseCommand):
             )
 
         building_types = [
-            ("Study Nook", "Adds personal experience bonuses.", ClubBuildingType.XP, 2, 20, 100),
-            ("Club Library", "Adds club experience bonuses.", ClubBuildingType.CLUB_XP, 2, 20, 100),
-            ("Design Studio", "Improves home beauty systems.", ClubBuildingType.HOME, 2, 20, 120),
-            ("Wardrobe Hall", "Improves outfit beauty systems.", ClubBuildingType.WARDROBE, 2, 20, 120),
-            ("Explorer Shed", "Improves exploration systems.", ClubBuildingType.EXPLORE, 2, 20, 140),
+            ("Учебный уголок", "Добавляет личные бонусы опыта.", ClubBuildingType.XP, 2, 20, 100),
+            ("Клубная библиотека", "Добавляет бонусы опыта клуба.", ClubBuildingType.CLUB_XP, 2, 20, 100),
+            ("Студия дизайна", "Улучшает системы красоты дома.", ClubBuildingType.HOME, 2, 20, 120),
+            ("Зал гардероба", "Улучшает бонусы красоты нарядов.", ClubBuildingType.WARDROBE, 2, 20, 120),
+            ("Домик исследователя", "Улучшает системы исследований.", ClubBuildingType.EXPLORE, 2, 20, 140),
         ]
         for name, description, effect, bonus_per_level, max_level, base_cost in building_types:
             ClubBuildingType.objects.update_or_create(
@@ -562,7 +562,7 @@ class Command(BaseCommand):
             demo.set_password("demo12345")
             demo.save()
         profile, _ = PlayerProfile.objects.get_or_create(user=demo, defaults={"coins": 180})
-        profile.display_name = "Demo Keeper"
+        profile.display_name = "Демо-хранитель"
         profile.coins = max(profile.coins, 180)
         profile.hearts = max(profile.hearts, 120)
         profile.save(update_fields=["display_name", "coins", "hearts"])
@@ -595,17 +595,17 @@ class Command(BaseCommand):
         for assistant_type in AssistantType.objects.all():
             PlayerAssistant.objects.get_or_create(profile=profile, assistant_type=assistant_type)
         club, _ = Club.objects.get_or_create(
-            name="Cozy Trail Club",
-            defaults={"description": "A starter club for friendly local testing.", "coins": 300, "hearts": 120, "level": 2},
+            name="Клуб уютной тропы",
+            defaults={"description": "Стартовый клуб для дружелюбной локальной проверки.", "coins": 300, "hearts": 120, "level": 2},
         )
         ClubMembership.objects.get_or_create(club=club, profile=profile, defaults={"role": ClubMembership.OWNER, "contribution_score": 420})
         for building_type in ClubBuildingType.objects.all():
             ClubBuilding.objects.get_or_create(club=club, building_type=building_type, defaults={"level": 1})
-        ClubHistoryEvent.objects.get_or_create(club=club, actor=profile, text="The club opened its cozy doors.")
+        ClubHistoryEvent.objects.get_or_create(club=club, actor=profile, text="Клуб открыл свои уютные двери.")
         news_category = ForumCategory.objects.filter(is_news=True).first()
         if news_category:
-            thread, _ = ForumThread.objects.get_or_create(category=news_category, title="Welcome to Cozy Paws", defaults={"author": profile, "pinned": True})
-            ForumPost.objects.get_or_create(thread=thread, author=profile, body="This local build now includes clubs, adventures, chests, gifts, and forum pages.")
+            thread, _ = ForumThread.objects.get_or_create(category=news_category, title="Добро пожаловать в Cozy Paws", defaults={"author": profile, "pinned": True})
+            ForumPost.objects.get_or_create(thread=thread, author=profile, body="Эта локальная сборка включает клубы, приключения, сундуки, подарки и форум.")
         starter_prompt = MemoryPrompt.objects.filter(active=True).order_by("theme", "title").first()
         if demo_pet and starter_prompt:
             starter_date = timezone.localdate() - timezone.timedelta(days=1)
@@ -629,4 +629,4 @@ class Command(BaseCommand):
                 },
             )
 
-        self.stdout.write(self.style.SUCCESS("Starter data is ready. Demo login: demo / demo12345"))
+        self.stdout.write(self.style.SUCCESS("Стартовые данные готовы. Демо-вход: demo / demo12345"))

@@ -79,6 +79,12 @@ LOGIN_URL = "login"
 LOGIN_REDIRECT_URL = "dashboard"
 LOGOUT_REDIRECT_URL = "home"
 
+SUPABASE_URL = os.getenv("SUPABASE_URL", "").strip()
+SUPABASE_ANON_KEY = os.getenv("SUPABASE_ANON_KEY", "").strip()
+SUPABASE_SERVICE_ROLE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "").strip()
+SUPABASE_AUTH_ENABLED = os.getenv("SUPABASE_AUTH_ENABLED", "False").lower() in {"1", "true", "yes", "on"}
+SUPABASE_AUTH_REDIRECT_TO = os.getenv("SUPABASE_AUTH_REDIRECT_TO", "").strip()
+
 CSRF_TRUSTED_ORIGINS = [
     origin.strip()
     for origin in os.getenv("DJANGO_CSRF_TRUSTED_ORIGINS", "").split(",")

@@ -85,6 +85,10 @@ DJANGO_DEBUG=False
 DJANGO_ALLOWED_HOSTS=example.com,www.example.com
 DJANGO_CSRF_TRUSTED_ORIGINS=https://example.com,https://www.example.com
 DATABASE_URL=postgresql://cozypaws_user:<password>@<host>:5432/cozypaws
+SUPABASE_AUTH_ENABLED=True
+SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_ANON_KEY=<anon-key>
+SUPABASE_SERVICE_ROLE_KEY=<service-role-key>
 ```
 
 Recommended production startup:
@@ -98,6 +102,17 @@ gunicorn cozypaws.wsgi:application
 ```
 
 SQLite is used only as the local fallback when `DATABASE_URL` is not set. Production should use PostgreSQL through `DATABASE_URL`.
+
+## Supabase
+
+Cozy Paws supports Supabase for both infrastructure database and password auth:
+
+- set `DATABASE_URL` to the Supabase Postgres connection string;
+- set `SUPABASE_AUTH_ENABLED=True`;
+- set `SUPABASE_URL` and `SUPABASE_ANON_KEY`;
+- keep Django sessions enabled: Supabase authenticates credentials, then the app mirrors the Supabase user into a local Django user so existing game ownership logic keeps working.
+
+The Docker Compose file reads those variables from the host environment. Without them, it falls back to the local Postgres service for development.
 
 Example local PostgreSQL setup:
 

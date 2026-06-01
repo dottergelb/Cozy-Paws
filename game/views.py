@@ -1,5 +1,5 @@
 from django.contrib import messages
-from django.contrib.auth import login
+from django.contrib.auth import authenticate, login
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
 from django.db.models import Count, Max, Q, Sum
@@ -8,7 +8,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 import random
 
-from .forms import ChatMessageForm, PetForm, PrivateMessageForm, ProfileSettingsForm, RegisterForm, SupportTicketForm, UserReportForm
+from .forms import ChatMessageForm, PetForm, PrivateMessageForm, ProfileSettingsForm, RegisterForm, SupabaseLoginForm, SupportTicketForm, UserReportForm
 from .models import (
     ActionCooldown,
     ActionLog,
@@ -67,71 +67,10 @@ from .models import (
     UserReport,
     WearableItem,
 )
+from .domain.pet_care import ACTION_RULES, COOLDOWNS
+from .application.authentication import login_with_supabase, register_with_supabase
 from .services.memories import MemoryCreationError, create_memory_chapter, memory_available_today
-
-
-ACTION_RULES = {
-    "feed": {
-        "label": "покормил",
-        "energy": 0,
-        "mood": 3,
-        "hunger": 22,
-        "experience": 8,
-        "coins": 4,
-        "quest": Quest.FEED,
-        "requires": {},
-    },
-    "play": {
-        "label": "поиграл с",
-        "energy": -18,
-        "mood": 20,
-        "hunger": -7,
-        "experience": 13,
-        "coins": 7,
-        "quest": Quest.PLAY,
-        "requires": {"energy": 15},
-    },
-    "pet": {
-        "label": "погладил",
-        "energy": 0,
-        "mood": 10,
-        "hunger": -2,
-        "experience": 5,
-        "coins": 3,
-        "quest": Quest.PET,
-        "requires": {},
-    },
-    "walk": {
-        "label": "вывел гулять",
-        "energy": -25,
-        "mood": 14,
-        "hunger": -12,
-        "experience": 18,
-        "coins": 11,
-        "quest": Quest.WALK,
-        "requires": {"energy": 25},
-    },
-}
-
-COOLDOWNS = {
-    "pet_action": 8,
-    "buy_item": 2,
-    "claim_quest": 2,
-    "train": 20,
-    "show": 30,
-    "chat": 10,
-    "message": 10,
-    "support": 60,
-    "explore": 8,
-    "assistant": 5,
-    "club": 5,
-    "adventure": 5,
-    "competition": 5,
-    "chest": 5,
-    "gift": 5,
-    "forum": 5,
-    "memory": 5,
-}
+from .services.supabase_auth import SupabaseAuthError, supabase_auth_is_enabled
 
 
 def get_profile(user):
@@ -228,7 +167,7 @@ def log_action(profile, text, pet=None):
 def award_trophy(profile, trophy, pet=None):
     _owned, created = OwnedTrophy.objects.get_or_create(profile=profile, trophy=trophy)
     if created:
-        log_action(profile, f"Trophy earned: {trophy.name}.", pet)
+        log_action(profile, f"Получен трофей: {trophy.name}.", pet)
     return created
 
 
@@ -312,13 +251,48 @@ def register(request):
         return redirect("dashboard")
     form = RegisterForm(request.POST or None)
     if request.method == "POST" and form.is_valid():
-        user = form.save()
+        if supabase_auth_is_enabled():
+            try:
+                user = register_with_supabase(form.cleaned_data["email"], form.cleaned_data["password1"], form.cleaned_data["username"])
+            except SupabaseAuthError as exc:
+                form.add_error(None, f"Supabase не принял регистрацию: {exc}")
+                return render(request, "registration/register.html", {"form": form})
+        else:
+            user = form.save()
         get_profile(user)
         ensure_starter_pet(user)
         login(request, user)
         messages.success(request, "Добро пожаловать! Стартовый питомец уже ждет тебя.")
         return redirect("dashboard")
     return render(request, "registration/register.html", {"form": form})
+
+
+def login_view(request):
+    if request.user.is_authenticated:
+        return redirect("dashboard")
+    form = SupabaseLoginForm(request, data=request.POST or None)
+    if request.method == "POST":
+        if supabase_auth_is_enabled():
+            email_or_username = request.POST.get("username", "").strip()
+            password = request.POST.get("password", "")
+            try:
+                user = login_with_supabase(email_or_username, password)
+            except SupabaseAuthError as exc:
+                form.add_error(None, f"Не удалось войти через Supabase: {exc}")
+            else:
+                get_profile(user)
+                ensure_starter_pet(user)
+                login(request, user)
+                messages.success(request, "Ты вошел в игру.")
+                return redirect(request.GET.get("next") or "dashboard")
+        elif form.is_valid():
+            user = authenticate(request, username=form.cleaned_data["username"], password=form.cleaned_data["password"])
+            if user is not None:
+                login(request, user)
+                messages.success(request, "Ты вошел в игру.")
+                return redirect(request.GET.get("next") or "dashboard")
+            form.add_error(None, "Неверное имя пользователя или пароль.")
+    return render(request, "registration/login.html", {"form": form})
 
 
 @login_required
@@ -577,7 +551,7 @@ def buy_furniture(request, item_id):
     profile_obj = get_profile(request.user)
     item = get_object_or_404(FurnitureItem, id=item_id)
     if profile_obj.coins < item.price:
-        messages.error(request, "Not enough coins for this furniture.")
+        messages.error(request, "Не хватает монет для этой мебели.")
         return redirect("home_room")
     profile_obj.coins -= item.price
     profile_obj.save(update_fields=["coins"])
@@ -585,8 +559,8 @@ def buy_furniture(request, item_id):
     if created and not profile_obj.furniture.filter(placed=True, item__slot=item.slot).exists():
         owned.placed = True
         owned.save(update_fields=["placed"])
-    log_action(profile_obj, f"Furniture bought: {item.name}.")
-    messages.success(request, f"{item.name} added to your home.")
+    log_action(profile_obj, f"Куплена мебель: {item.name}.")
+    messages.success(request, f"{item.name} добавлена в дом.")
     return redirect("home_room")
 
 
@@ -599,8 +573,8 @@ def place_furniture(request, owned_id):
     profile_obj.furniture.filter(item__slot=owned.item.slot).update(placed=False)
     owned.placed = True
     owned.save(update_fields=["placed"])
-    log_action(profile_obj, f"Furniture placed: {owned.item.name}.")
-    messages.success(request, f"{owned.item.name} placed in the room.")
+    log_action(profile_obj, f"Мебель размещена: {owned.item.name}.")
+    messages.success(request, f"{owned.item.name} размещена в комнате.")
     return redirect("home_room")
 
 
@@ -611,18 +585,18 @@ def upgrade_furniture(request, owned_id):
     profile_obj = get_profile(request.user)
     owned = get_object_or_404(OwnedFurniture.objects.select_related("item"), id=owned_id, profile=profile_obj)
     if owned.level >= owned.item.max_level:
-        messages.info(request, "This furniture is already fully upgraded.")
+        messages.info(request, "Эта мебель уже улучшена до максимума.")
         return redirect("home_room")
     cost = owned.upgrade_cost
     if profile_obj.coins < cost:
-        messages.error(request, "Not enough coins for this upgrade.")
+        messages.error(request, "Не хватает монет для улучшения.")
         return redirect("home_room")
     profile_obj.coins -= cost
     profile_obj.save(update_fields=["coins"])
     owned.level += 1
     owned.save(update_fields=["level"])
-    log_action(profile_obj, f"Furniture upgraded: {owned.item.name} level {owned.level}.")
-    messages.success(request, f"{owned.item.name} upgraded to level {owned.level}.")
+    log_action(profile_obj, f"Мебель улучшена: {owned.item.name}, уровень {owned.level}.")
+    messages.success(request, f"{owned.item.name} улучшена до уровня {owned.level}.")
     return redirect("home_room")
 
 
@@ -696,8 +670,8 @@ def collections(request):
     profile_obj = get_profile(request.user)
     completed = complete_ready_collections(profile_obj)
     for collection in completed:
-        messages.success(request, f"Collection completed: {collection.name}.")
-        log_action(profile_obj, f"Collection completed: {collection.name}.")
+        messages.success(request, f"Коллекция завершена: {collection.name}.")
+        log_action(profile_obj, f"Коллекция завершена: {collection.name}.")
     owned_map = {owned.piece_id: owned.quantity for owned in profile_obj.collection_pieces.select_related("piece")}
     completed_ids = set(profile_obj.completed_collections.values_list("collection_id", flat=True))
     collection_rows = []
@@ -760,22 +734,22 @@ def run_explore(request, site_id):
     pet = active_pet(request.user)
     site = get_object_or_404(ExplorationSite, id=site_id, active=True)
     if not pet:
-        messages.error(request, "Create a pet before exploring.")
+        messages.error(request, "Создай питомца перед исследованием.")
         return redirect("create_pet")
     if not enforce_cooldown(request, profile_obj, "explore"):
         return redirect("explore")
     if pet.level < site.min_level:
-        messages.error(request, "Your pet level is too low for this place.")
+        messages.error(request, "Уровень питомца слишком низкий для этого места.")
         return redirect("explore")
     if pet.energy < site.energy_cost:
-        messages.error(request, "Not enough energy for exploration.")
+        messages.error(request, "Не хватает энергии для исследования.")
         return redirect("explore")
     if profile_obj.coins < site.coin_cost:
-        messages.error(request, "Not enough coins for this exploration.")
+        messages.error(request, "Не хватает монет для этого исследования.")
         return redirect("explore")
     used = profile_obj.explorations.filter(site=site, created_at__date=timezone.localdate()).count()
     if used >= site.daily_limit:
-        messages.error(request, "No attempts left for this place today.")
+        messages.error(request, "На сегодня попытки в этом месте закончились.")
         return redirect("explore")
 
     profile_obj.coins -= site.coin_cost
@@ -797,12 +771,12 @@ def run_explore(request, site_id):
     ExplorationLog.objects.create(profile=profile_obj, pet=pet, site=site, found_piece=found_piece, found_trophy=found_trophy)
     completed = complete_ready_collections(profile_obj)
     if found_piece:
-        messages.success(request, f"Found collection piece: {found_piece.name}.")
+        messages.success(request, f"Найдена часть коллекции: {found_piece.name}.")
     if found_trophy:
-        messages.success(request, f"Found trophy: {found_trophy.name}.")
+        messages.success(request, f"Найден трофей: {found_trophy.name}.")
     for collection in completed:
-        messages.success(request, f"Collection completed: {collection.name}.")
-    log_action(profile_obj, f"{pet.name} explored {site.name}.", pet)
+        messages.success(request, f"Коллекция завершена: {collection.name}.")
+    log_action(profile_obj, f"{pet.name} исследует {site.name}.", pet)
     return redirect("explore")
 
 
@@ -860,18 +834,18 @@ def train_assistant(request, assistant_id):
     if not enforce_cooldown(request, profile_obj, "assistant"):
         return redirect("assistants")
     if assistant.level >= assistant.assistant_type.max_level:
-        messages.info(request, "This assistant is already at max level.")
+        messages.info(request, "Этот помощник уже максимального уровня.")
         return redirect("assistants")
     cost = assistant.train_cost
     if profile_obj.hearts < cost:
-        messages.error(request, "Not enough hearts for assistant training.")
+        messages.error(request, "Не хватает сердечек для тренировки помощника.")
         return redirect("assistants")
     profile_obj.hearts -= cost
     profile_obj.save(update_fields=["hearts"])
     assistant.level += 1
     assistant.save(update_fields=["level"])
-    log_action(profile_obj, f"Assistant trained: {assistant.assistant_type.name} level {assistant.level}.")
-    messages.success(request, f"{assistant.assistant_type.name} is now level {assistant.level}.")
+    log_action(profile_obj, f"Помощник обучен: {assistant.assistant_type.name}, уровень {assistant.level}.")
+    messages.success(request, f"{assistant.assistant_type.name} теперь уровня {assistant.level}.")
     return redirect("assistants")
 
 
@@ -1184,18 +1158,18 @@ def create_club(request):
         return redirect("clubs")
     profile_obj = get_profile(request.user)
     if club_for_profile(profile_obj):
-        messages.error(request, "You are already in a club.")
+        messages.error(request, "Ты уже состоишь в клубе.")
         return redirect("clubs")
     if profile_obj.coins < 250:
-        messages.error(request, "Creating a club costs 250 coins.")
+        messages.error(request, "Создание клуба стоит 250 монет.")
         return redirect("clubs")
     name = request.POST.get("name", "").strip()[:80]
     description = request.POST.get("description", "").strip()[:180]
     if len(name) < 3:
-        messages.error(request, "Club name must be at least 3 characters.")
+        messages.error(request, "Название клуба должно быть не короче 3 символов.")
         return redirect("clubs")
     if Club.objects.filter(name__iexact=name).exists():
-        messages.error(request, "A club with this name already exists.")
+        messages.error(request, "Клуб с таким названием уже существует.")
         return redirect("clubs")
     profile_obj.coins -= 250
     profile_obj.save(update_fields=["coins"])
@@ -1203,8 +1177,8 @@ def create_club(request):
     ClubMembership.objects.create(club=club, profile=profile_obj, role=ClubMembership.OWNER)
     for building_type in ClubBuildingType.objects.all():
         ClubBuilding.objects.get_or_create(club=club, building_type=building_type)
-    ClubHistoryEvent.objects.create(club=club, actor=profile_obj, text=f"{profile_obj.public_name} founded the club.")
-    messages.success(request, f"Club created: {club.name}.")
+    ClubHistoryEvent.objects.create(club=club, actor=profile_obj, text=f"{profile_obj.public_name} основал клуб.")
+    messages.success(request, f"Клуб создан: {club.name}.")
     return redirect("club_detail", club_id=club.id)
 
 
@@ -1236,7 +1210,7 @@ def request_club_join(request, club_id):
     profile_obj = get_profile(request.user)
     club = get_object_or_404(Club, id=club_id)
     if club_for_profile(profile_obj):
-        messages.error(request, "You are already in a club.")
+        messages.error(request, "Ты уже состоишь в клубе.")
         return redirect("club_detail", club_id=club_id)
     ClubJoinRequest.objects.get_or_create(
         club=club,
@@ -1244,7 +1218,7 @@ def request_club_join(request, club_id):
         status=ClubJoinRequest.PENDING,
         defaults={"message": request.POST.get("message", "")[:160]},
     )
-    messages.success(request, "Join request sent.")
+    messages.success(request, "Заявка на вступление отправлена.")
     return redirect("club_detail", club_id=club_id)
 
 
@@ -1256,21 +1230,21 @@ def accept_club_join(request, request_id):
     join_request = get_object_or_404(ClubJoinRequest.objects.select_related("club", "profile"), id=request_id, status=ClubJoinRequest.PENDING)
     membership = ClubMembership.objects.filter(club=join_request.club, profile=profile_obj, role__in=[ClubMembership.OWNER, ClubMembership.DEPUTY]).first()
     if not membership:
-        messages.error(request, "Only club leaders can accept requests.")
+        messages.error(request, "Только лидеры клуба могут принимать заявки.")
         return redirect("club_detail", club_id=join_request.club.id)
     if join_request.club.memberships.count() >= join_request.club.member_limit:
-        messages.error(request, "The club is full.")
+        messages.error(request, "В клубе нет свободных мест.")
         return redirect("club_detail", club_id=join_request.club.id)
     if club_for_profile(join_request.profile):
         join_request.status = ClubJoinRequest.DECLINED
         join_request.save(update_fields=["status"])
-        messages.error(request, "This player already joined another club.")
+        messages.error(request, "Этот игрок уже вступил в другой клуб.")
         return redirect("club_detail", club_id=join_request.club.id)
     ClubMembership.objects.create(club=join_request.club, profile=join_request.profile)
     join_request.status = ClubJoinRequest.ACCEPTED
     join_request.save(update_fields=["status"])
-    ClubHistoryEvent.objects.create(club=join_request.club, actor=profile_obj, text=f"{join_request.profile.public_name} joined the club.")
-    messages.success(request, "Join request accepted.")
+    ClubHistoryEvent.objects.create(club=join_request.club, actor=profile_obj, text=f"{join_request.profile.public_name} вступил в клуб.")
+    messages.success(request, "Заявка принята.")
     return redirect("club_detail", club_id=join_request.club.id)
 
 
@@ -1284,10 +1258,10 @@ def contribute_club(request, club_id):
     coins = max(0, int(request.POST.get("coins") or 0))
     hearts = max(0, int(request.POST.get("hearts") or 0))
     if coins == 0 and hearts == 0:
-        messages.error(request, "Choose coins or hearts to contribute.")
+        messages.error(request, "Выбери монеты или сердечки для взноса.")
         return redirect("club_detail", club_id=club.id)
     if profile_obj.coins < coins or profile_obj.hearts < hearts:
-        messages.error(request, "Not enough resources for this contribution.")
+        messages.error(request, "Не хватает ресурсов для взноса.")
         return redirect("club_detail", club_id=club.id)
     profile_obj.coins -= coins
     profile_obj.hearts -= hearts
@@ -1303,8 +1277,8 @@ def contribute_club(request, club_id):
     membership.contribution_score += coins + hearts
     membership.save(update_fields=["contribution_score"])
     ClubContribution.objects.create(club=club, profile=profile_obj, coins=coins, hearts=hearts)
-    ClubHistoryEvent.objects.create(club=club, actor=profile_obj, text=f"{profile_obj.public_name} contributed to the club.")
-    messages.success(request, "Contribution added to club treasury.")
+    ClubHistoryEvent.objects.create(club=club, actor=profile_obj, text=f"{profile_obj.public_name} внес ресурсы в клуб.")
+    messages.success(request, "Взнос добавлен в казну клуба.")
     return redirect("club_detail", club_id=club.id)
 
 
@@ -1316,21 +1290,21 @@ def upgrade_club_building(request, building_id):
     building = get_object_or_404(ClubBuilding.objects.select_related("club", "building_type"), id=building_id)
     membership = ClubMembership.objects.filter(club=building.club, profile=profile_obj, role__in=[ClubMembership.OWNER, ClubMembership.DEPUTY]).first()
     if not membership:
-        messages.error(request, "Only club leaders can upgrade buildings.")
+        messages.error(request, "Только лидеры клуба могут улучшать здания.")
         return redirect("club_detail", club_id=building.club.id)
     if building.level >= building.building_type.max_level:
-        messages.info(request, "This building is already max level.")
+        messages.info(request, "Это здание уже максимального уровня.")
         return redirect("club_detail", club_id=building.club.id)
     cost = building.upgrade_cost
     if building.club.coins < cost:
-        messages.error(request, "Club treasury does not have enough coins.")
+        messages.error(request, "В казне клуба не хватает монет.")
         return redirect("club_detail", club_id=building.club.id)
     building.club.coins -= cost
     building.club.save(update_fields=["coins"])
     building.level += 1
     building.save(update_fields=["level"])
-    ClubHistoryEvent.objects.create(club=building.club, actor=profile_obj, text=f"{building.building_type.name} upgraded to level {building.level}.")
-    messages.success(request, f"{building.building_type.name} upgraded.")
+    ClubHistoryEvent.objects.create(club=building.club, actor=profile_obj, text=f"{building.building_type.name} улучшено до уровня {building.level}.")
+    messages.success(request, f"{building.building_type.name} улучшено.")
     return redirect("club_detail", club_id=building.club.id)
 
 
@@ -1342,15 +1316,15 @@ def post_club_announcement(request, club_id):
     club = get_object_or_404(Club, id=club_id)
     membership = ClubMembership.objects.filter(club=club, profile=profile_obj, role__in=[ClubMembership.OWNER, ClubMembership.DEPUTY, ClubMembership.OFFICER]).first()
     if not membership:
-        messages.error(request, "Only club officers can post announcements.")
+        messages.error(request, "Только офицеры клуба могут публиковать объявления.")
         return redirect("club_detail", club_id=club.id)
     body = request.POST.get("body", "").strip()[:240]
     if not body:
-        messages.error(request, "Announcement cannot be empty.")
+        messages.error(request, "Объявление не может быть пустым.")
         return redirect("club_detail", club_id=club.id)
     ClubAnnouncement.objects.create(club=club, author=profile_obj, body=body)
-    ClubHistoryEvent.objects.create(club=club, actor=profile_obj, text="Club announcement posted.")
-    messages.success(request, "Announcement posted.")
+    ClubHistoryEvent.objects.create(club=club, actor=profile_obj, text="Опубликовано объявление клуба.")
+    messages.success(request, "Объявление опубликовано.")
     return redirect("club_detail", club_id=club.id)
 
 
@@ -1381,13 +1355,13 @@ def craft_fragment(request, fragment_id):
     owned = get_object_or_404(OwnedFragment.objects.select_related("fragment_type"), id=fragment_id, profile=profile_obj)
     required = owned.fragment_type.required_fragments
     if owned.quantity < required:
-        messages.error(request, "Not enough fragments to complete this keepsake.")
+        messages.error(request, "Не хватает фрагментов, чтобы завершить эту реликвию.")
         return redirect("fragments")
     owned.quantity -= required
     owned.completed_count += 1
     owned.save(update_fields=["quantity", "completed_count"])
-    log_action(profile_obj, f"Completed fragment keepsake: {owned.fragment_type.name}.")
-    messages.success(request, f"{owned.fragment_type.name} completed. Permanent beauty +{owned.fragment_type.beauty_bonus}.")
+    log_action(profile_obj, f"Завершена реликвия из фрагментов: {owned.fragment_type.name}.")
+    messages.success(request, f"{owned.fragment_type.name} завершена. Постоянная красота +{owned.fragment_type.beauty_bonus}.")
     return redirect("fragments")
 
 
@@ -1416,25 +1390,25 @@ def start_adventure(request, route_id):
     pet = active_pet(request.user)
     route = get_object_or_404(AdventureRoute, id=route_id, active=True)
     if not pet:
-        messages.error(request, "Create a pet before starting adventures.")
+        messages.error(request, "Создай питомца перед приключением.")
         return redirect("create_pet")
     if not enforce_cooldown(request, profile_obj, "adventure"):
         return redirect("adventures")
     if PetAdventure.objects.filter(profile=profile_obj, pet=pet, completed=False).exists():
-        messages.error(request, f"{pet.name} is already on an adventure.")
+        messages.error(request, f"{pet.name} уже в приключении.")
         return redirect("adventures")
     if pet.level < route.min_level:
-        messages.error(request, "Your pet level is too low for this adventure.")
+        messages.error(request, "Уровень питомца слишком низкий для этого приключения.")
         return redirect("adventures")
     if pet.energy < route.energy_cost:
-        messages.error(request, "Not enough energy for this adventure.")
+        messages.error(request, "Не хватает энергии для этого приключения.")
         return redirect("adventures")
     pet.change_stats(energy=-route.energy_cost, mood=2, hunger=-3)
     pet.save()
     finishes_at = timezone.now() + timezone.timedelta(minutes=route.duration_minutes)
     PetAdventure.objects.create(profile=profile_obj, pet=pet, route=route, finishes_at=finishes_at)
-    log_action(profile_obj, f"{pet.name} started adventure: {route.name}.", pet)
-    messages.success(request, f"{pet.name} started {route.name}.")
+    log_action(profile_obj, f"{pet.name} начал приключение: {route.name}.", pet)
+    messages.success(request, f"{pet.name} отправился на маршрут «{route.name}».")
     return redirect("adventures")
 
 
@@ -1445,7 +1419,7 @@ def finish_adventure(request, adventure_id):
     profile_obj = get_profile(request.user)
     adventure = get_object_or_404(PetAdventure.objects.select_related("route", "pet"), id=adventure_id, profile=profile_obj, completed=False)
     if not adventure.is_ready:
-        messages.error(request, "This adventure is still in progress.")
+        messages.error(request, "Это приключение еще не завершено.")
         return redirect("adventures")
     route = adventure.route
     pet = adventure.pet
@@ -1458,9 +1432,9 @@ def finish_adventure(request, adventure_id):
     profile_obj.save(update_fields=["coins", "hearts"])
     pet.save()
     adventure.save(update_fields=["completed"])
-    reward_note = f", fragment {fragment.fragment_type.name}" if fragment else ""
-    log_action(profile_obj, f"{pet.name} completed adventure: {route.name}{reward_note}.", pet)
-    messages.success(request, f"Adventure complete: +{route.reward_coins} coins, +{route.reward_hearts} hearts{reward_note}.")
+    reward_note = f", фрагмент {fragment.fragment_type.name}" if fragment else ""
+    log_action(profile_obj, f"{pet.name} завершил приключение: {route.name}{reward_note}.", pet)
+    messages.success(request, f"Приключение завершено: +{route.reward_coins} монет, +{route.reward_hearts} сердечек{reward_note}.")
     return redirect("adventures")
 
 
@@ -1488,22 +1462,22 @@ def enter_competition(request, mode_id):
     pet = active_pet(request.user)
     mode = get_object_or_404(CompetitionMode, id=mode_id, active=True)
     if not pet:
-        messages.error(request, "Create a pet before entering competitions.")
+        messages.error(request, "Создай питомца перед соревнованием.")
         return redirect("create_pet")
     if not enforce_cooldown(request, profile_obj, "competition"):
         return redirect("competitions")
     if pet.level < mode.min_level:
-        messages.error(request, "Your pet level is too low for this competition.")
+        messages.error(request, "Уровень питомца слишком низкий для этого соревнования.")
         return redirect("competitions")
     if profile_obj.coins < mode.entry_fee:
-        messages.error(request, "Not enough coins for the entry fee.")
+        messages.error(request, "Не хватает монет на вступительный взнос.")
         return redirect("competitions")
     if pet.energy < 8:
-        messages.error(request, "Not enough energy for competition.")
+        messages.error(request, "Не хватает энергии для соревнования.")
         return redirect("competitions")
     base_stat = pet.mood if mode.stat == CompetitionMode.MOOD else getattr(pet, mode.stat)
     score = base_stat * 4 + pet.level * 9 + pet.beauty + profile_obj.passive_beauty_bonus + random.randint(1, 18)
-    league = "Diamond" if score >= 120 else "Gold" if score >= 90 else "Silver" if score >= 60 else "Sprout"
+    league = "Алмазная" if score >= 120 else "Золотая" if score >= 90 else "Серебряная" if score >= 60 else "Росток"
     profile_obj.coins -= mode.entry_fee
     profile_obj.coins += mode.reward_coins
     profile_obj.hearts += mode.reward_hearts
@@ -1513,8 +1487,8 @@ def enter_competition(request, mode_id):
     pet.save()
     CompetitionEntry.objects.create(mode=mode, profile=profile_obj, pet=pet, score=score, league=league)
     add_quest_progress(profile_obj, Quest.SHOW)
-    log_action(profile_obj, f"{pet.name} entered {mode.name} and reached {league} league.", pet)
-    messages.success(request, f"Competition complete: {score} points, {league} league.")
+    log_action(profile_obj, f"{pet.name} участвовал в «{mode.name}» и получил лигу {league}.", pet)
+    messages.success(request, f"Соревнование завершено: {score} очков, лига {league}.")
     return redirect("competitions")
 
 
@@ -1539,10 +1513,10 @@ def open_chest(request, chest_id):
         return redirect("chests")
     used = profile_obj.chest_openings.filter(chest_type=chest, created_at__date=timezone.localdate()).count()
     if used >= chest.daily_limit:
-        messages.error(request, "Daily limit for this chest is reached.")
+        messages.error(request, "Дневной лимит для этого сундука исчерпан.")
         return redirect("chests")
     if profile_obj.hearts < chest.key_cost:
-        messages.error(request, "Not enough hearts to open this chest.")
+        messages.error(request, "Не хватает сердечек, чтобы открыть сундук.")
         return redirect("chests")
     coins = random.randint(chest.min_coins, chest.max_coins)
     hearts = random.randint(0, 2)
@@ -1550,11 +1524,11 @@ def open_chest(request, chest_id):
     profile_obj.coins += coins
     profile_obj.hearts += hearts
     fragment = award_random_fragment(profile_obj)
-    reward_text = f"+{coins} coins, +{hearts} hearts" + (f", {fragment.fragment_type.name} fragment" if fragment else "")
+    reward_text = f"+{coins} монет, +{hearts} сердечек" + (f", фрагмент {fragment.fragment_type.name}" if fragment else "")
     profile_obj.save(update_fields=["coins", "hearts"])
     ChestOpening.objects.create(profile=profile_obj, chest_type=chest, reward_text=reward_text, coins=coins, hearts=hearts)
-    log_action(profile_obj, f"Opened chest {chest.name}: {reward_text}.")
-    messages.success(request, f"Chest opened: {reward_text}.")
+    log_action(profile_obj, f"Открыт сундук {chest.name}: {reward_text}.")
+    messages.success(request, f"Сундук открыт: {reward_text}.")
     return redirect("chests")
 
 
@@ -1583,19 +1557,19 @@ def send_gift(request, gift_id, profile_id):
     gift = get_object_or_404(GiftCatalogItem, id=gift_id)
     recipient = get_object_or_404(PlayerProfile, id=profile_id)
     if recipient == profile_obj:
-        messages.error(request, "You cannot send a gift to yourself.")
+        messages.error(request, "Нельзя отправить подарок самому себе.")
         return redirect("gifts")
     if not enforce_cooldown(request, profile_obj, "gift"):
         return redirect("gifts")
     if profile_obj.hearts < gift.price_hearts:
-        messages.error(request, "Not enough hearts for this gift.")
+        messages.error(request, "Не хватает сердечек для этого подарка.")
         return redirect("gifts")
     message = request.POST.get("message", "").strip()[:160]
     profile_obj.hearts -= gift.price_hearts
     profile_obj.save(update_fields=["hearts"])
     SentGift.objects.create(sender=profile_obj, recipient=recipient, gift=gift, message=message)
-    log_action(profile_obj, f"Sent gift {gift.name} to {recipient.public_name}.")
-    messages.success(request, f"Gift sent to {recipient.public_name}.")
+    log_action(profile_obj, f"Подарок {gift.name} отправлен игроку {recipient.public_name}.")
+    messages.success(request, f"Подарок отправлен игроку {recipient.public_name}.")
     return redirect("gifts")
 
 
@@ -1639,11 +1613,11 @@ def create_forum_thread(request, category_id):
     title = request.POST.get("title", "").strip()[:120]
     body = request.POST.get("body", "").strip()[:1200]
     if len(title) < 3 or len(body) < 3:
-        messages.error(request, "Thread title and text must be filled.")
+        messages.error(request, "Заполни название темы и текст.")
         return redirect("forum_category", category_id=category.id)
     thread = ForumThread.objects.create(category=category, author=profile_obj, title=title)
     ForumPost.objects.create(thread=thread, author=profile_obj, body=body)
-    messages.success(request, "Thread created.")
+    messages.success(request, "Тема создана.")
     return redirect("forum_thread", thread_id=thread.id)
 
 
@@ -1661,17 +1635,17 @@ def reply_forum_thread(request, thread_id):
     profile_obj = get_profile(request.user)
     thread = get_object_or_404(ForumThread, id=thread_id)
     if thread.locked:
-        messages.error(request, "This thread is locked.")
+        messages.error(request, "Эта тема закрыта.")
         return redirect("forum_thread", thread_id=thread.id)
     if not enforce_cooldown(request, profile_obj, "forum"):
         return redirect("forum_thread", thread_id=thread.id)
     body = request.POST.get("body", "").strip()[:1200]
     if len(body) < 2:
-        messages.error(request, "Reply cannot be empty.")
+        messages.error(request, "Ответ не может быть пустым.")
         return redirect("forum_thread", thread_id=thread.id)
     ForumPost.objects.create(thread=thread, author=profile_obj, body=body)
     thread.save(update_fields=["updated_at"])
-    messages.success(request, "Reply posted.")
+    messages.success(request, "Ответ опубликован.")
     return redirect("forum_thread", thread_id=thread.id)
 
 
@@ -1693,7 +1667,7 @@ def game_settings(request):
         preferences.reduced_motion = bool(request.POST.get("reduced_motion"))
         preferences.low_bandwidth = bool(request.POST.get("low_bandwidth"))
         preferences.save()
-        messages.success(request, "Game settings saved.")
+        messages.success(request, "Настройки игры сохранены.")
         return redirect("game_settings")
     return render(request, "game/game_settings.html", {"profile": profile_obj, "preferences": preferences})
 

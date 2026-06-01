@@ -1,20 +1,20 @@
 {% extends "base.html" %}
-{% block title %}Game settings - Cozy Paws{% endblock %}
+{% block title %}Настройки игры - Cozy Paws{% endblock %}
 {% block content %}
 <section class="summary-row">
-    <div><span class="eyebrow">Settings</span><strong>Display and comfort</strong></div>
-    <a class="button ghost" href="{% url 'settings' %}">Profile</a>
+    <div><span class="eyebrow">Настройки</span><strong>Отображение и комфорт</strong></div>
+    <a class="button ghost" href="{% url 'settings' %}">Профиль</a>
 </section>
 
 <section class="panel">
     <form class="stack-form" method="post">
         {% csrf_token %}
-        <label><input type="checkbox" name="compact_mode" {% if preferences.compact_mode %}checked{% endif %}> Compact mode</label>
-        <label><input type="checkbox" name="show_bottom_nav" {% if preferences.show_bottom_nav %}checked{% endif %}> Bottom navigation</label>
-        <label><input type="checkbox" name="show_quick_actions" {% if preferences.show_quick_actions %}checked{% endif %}> Quick actions</label>
-        <label><input type="checkbox" name="reduced_motion" {% if preferences.reduced_motion %}checked{% endif %}> Reduced motion</label>
-        <label><input type="checkbox" name="low_bandwidth" {% if preferences.low_bandwidth %}checked{% endif %}> Low bandwidth mode</label>
-        <button class="button primary" type="submit">Save</button>
+        <label><input type="checkbox" name="compact_mode" {% if preferences.compact_mode %}checked{% endif %}> Компактный режим</label>
+        <label><input type="checkbox" name="show_bottom_nav" {% if preferences.show_bottom_nav %}checked{% endif %}> Нижняя навигация</label>
+        <label><input type="checkbox" name="show_quick_actions" {% if preferences.show_quick_actions %}checked{% endif %}> Быстрые действия</label>
+        <label><input type="checkbox" name="reduced_motion" {% if preferences.reduced_motion %}checked{% endif %}> Меньше анимаций</label>
+        <label><input type="checkbox" name="low_bandwidth" {% if preferences.low_bandwidth %}checked{% endif %}> Экономия трафика</label>
+        <button class="button primary" type="submit">Сохранить</button>
     </form>
 </section>
 {% endblock %}

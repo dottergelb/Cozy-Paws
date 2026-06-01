@@ -1,8 +1,8 @@
 {% extends "base.html" %}
-{% block title %}Leagues - Cozy Paws{% endblock %}
+{% block title %}Лиги - Cozy Paws{% endblock %}
 {% block content %}
 <section class="summary-row">
-    <div><span class="eyebrow">Competitions</span><strong>{% if pet %}{{ pet.name }} power {{ pet.show_power }}{% else %}No active pet{% endif %}</strong></div>
+    <div><span class="eyebrow">Соревнования</span><strong>{% if pet %}{{ pet.name }} · сила {{ pet.show_power }}{% else %}Нет активного питомца{% endif %}</strong></div>
     <div class="coins"><svg><use href="#i-coin"></use></svg>{{ profile.coins }}</div>
 </section>
 
@@ -13,28 +13,28 @@
             <h2>{{ mode.name }}</h2>
             <p>{{ mode.description }}</p>
             <div class="effect-list">
-                <span>{{ mode.stat }}</span>
-                <span>Level {{ mode.min_level }}+</span>
-                <span>Entry {{ mode.entry_fee }}</span>
-                <span>Reward {{ mode.reward_coins }} coins</span>
+                <span>{{ mode.get_stat_display }}</span>
+                <span>Уровень {{ mode.min_level }}+</span>
+                <span>Взнос {{ mode.entry_fee }}</span>
+                <span>Награда {{ mode.reward_coins }} монет</span>
             </div>
             <form method="post" action="{% url 'enter_competition' mode.id %}">
                 {% csrf_token %}
-                <button class="button primary" type="submit">Enter</button>
+                <button class="button primary" type="submit">Участвовать</button>
             </form>
         </article>
     {% empty %}
-        <section class="empty-state"><p>No competition modes yet.</p></section>
+        <section class="empty-state"><p>Режимы соревнований пока не добавлены.</p></section>
     {% endfor %}
 </section>
 
 <section class="panel">
-    <div class="section-head"><h2>Your entries</h2><span class="badge">{{ entries|length }}</span></div>
+    <div class="section-head"><h2>Мои выступления</h2><span class="badge">{{ entries|length }}</span></div>
     <div class="log-list">
         {% for entry in entries %}
-            <div class="log-line"><span>{{ entry.mode.name }} · {{ entry.league }}</span><strong>{{ entry.score }} points</strong></div>
+            <div class="log-line"><span>{{ entry.mode.name }} · {{ entry.league }}</span><strong>{{ entry.score }} очков</strong></div>
         {% empty %}
-            <p class="muted">Enter a league to see results.</p>
+            <p class="muted">Участвуй в лиге, чтобы увидеть результат.</p>
         {% endfor %}
     </div>
 </section>

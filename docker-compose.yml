@@ -21,10 +21,15 @@ services:
       db:
         condition: service_healthy
     environment:
-      DJANGO_SECRET_KEY: local-docker-secret-change-before-production-8c2a6bd1d27b4e6a
-      DJANGO_DEBUG: "True"
-      DJANGO_ALLOWED_HOSTS: "*"
-      DATABASE_URL: postgresql://cozypaws:cozypaws_local_password@db:5432/cozypaws
+      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:-local-docker-secret-change-before-production-8c2a6bd1d27b4e6a}
+      DJANGO_DEBUG: ${DJANGO_DEBUG:-True}
+      DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS:-*}
+      DATABASE_URL: ${DATABASE_URL:-postgresql://cozypaws:cozypaws_local_password@db:5432/cozypaws}
+      SUPABASE_AUTH_ENABLED: ${SUPABASE_AUTH_ENABLED:-False}
+      SUPABASE_URL: ${SUPABASE_URL:-}
+      SUPABASE_ANON_KEY: ${SUPABASE_ANON_KEY:-}
+      SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY:-}
+      SUPABASE_AUTH_REDIRECT_TO: ${SUPABASE_AUTH_REDIRECT_TO:-}
       POSTGRES_HOST: db
       POSTGRES_PORT: "5432"
       GUNICORN_WORKERS: "2"

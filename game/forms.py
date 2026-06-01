@@ -1,16 +1,31 @@
 from django import forms
-from django.contrib.auth.forms import UserCreationForm
+from django.contrib.auth.forms import AuthenticationForm, UserCreationForm
 from django.contrib.auth.models import User
 
 from .models import ChatMessage, Pet, PlayerProfile, PrivateMessage, SupportTicket, UserReport
 
 
 class RegisterForm(UserCreationForm):
-    email = forms.EmailField(required=False, label="Email")
+    email = forms.EmailField(required=True, label="Email")
 
     class Meta:
         model = User
         fields = ("username", "email", "password1", "password2")
+        labels = {
+            "username": "Имя пользователя",
+            "email": "Email",
+            "password1": "Пароль",
+            "password2": "Повтори пароль",
+        }
+
+
+class SupabaseLoginForm(AuthenticationForm):
+    username = forms.CharField(label="Email или имя пользователя")
+    password = forms.CharField(
+        label="Пароль",
+        strip=False,
+        widget=forms.PasswordInput(attrs={"autocomplete": "current-password"}),
+    )
 
 
 class PetForm(forms.ModelForm):

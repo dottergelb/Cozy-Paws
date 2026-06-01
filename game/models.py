@@ -5,6 +5,7 @@ from django.utils import timezone
 
 class PlayerProfile(models.Model):
     user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="profile")
+    supabase_user_id = models.CharField(max_length=80, unique=True, null=True, blank=True)
     display_name = models.CharField(max_length=40, blank=True)
     bio = models.CharField(max_length=160, blank=True)
     coins = models.PositiveIntegerField(default=120)
@@ -479,12 +480,12 @@ class FurnitureItem(models.Model):
     PLANT = "plant"
     POSTER = "poster"
     SLOT_CHOICES = [
-        (BED, "Bed"),
-        (TOY_CORNER, "Toy corner"),
-        (WINDOW, "Window"),
-        (RUG, "Rug"),
-        (PLANT, "Plant"),
-        (POSTER, "Poster"),
+        (BED, "Лежанка"),
+        (TOY_CORNER, "Уголок игрушек"),
+        (WINDOW, "Окно"),
+        (RUG, "Ковер"),
+        (PLANT, "Растение"),
+        (POSTER, "Постер"),
     ]
 
     name = models.CharField(max_length=80, unique=True)
@@ -580,7 +581,7 @@ class Trophy(models.Model):
     PRIZE = "prize"
     CUP = "cup"
     BADGE = "badge"
-    TYPE_CHOICES = [(MEDAL, "Medal"), (PRIZE, "Prize"), (CUP, "Cup"), (BADGE, "Badge")]
+    TYPE_CHOICES = [(MEDAL, "Медаль"), (PRIZE, "Приз"), (CUP, "Кубок"), (BADGE, "Значок")]
 
     name = models.CharField(max_length=80, unique=True)
     description = models.CharField(max_length=180)
@@ -642,10 +643,10 @@ class AssistantType(models.Model):
     SCOUT = "scout"
     BUILDER = "builder"
     ROLE_CHOICES = [
-        (CARETAKER, "Care"),
-        (STYLIST, "Style"),
-        (SCOUT, "Explore"),
-        (BUILDER, "Home"),
+        (CARETAKER, "Забота"),
+        (STYLIST, "Стиль"),
+        (SCOUT, "Исследования"),
+        (BUILDER, "Дом"),
     ]
 
     name = models.CharField(max_length=80, unique=True)
@@ -699,7 +700,7 @@ class ClubMembership(models.Model):
     DEPUTY = "deputy"
     OFFICER = "officer"
     MEMBER = "member"
-    ROLE_CHOICES = [(OWNER, "Owner"), (DEPUTY, "Deputy"), (OFFICER, "Officer"), (MEMBER, "Member")]
+    ROLE_CHOICES = [(OWNER, "Владелец"), (DEPUTY, "Заместитель"), (OFFICER, "Офицер"), (MEMBER, "Участник")]
 
     club = models.ForeignKey(Club, on_delete=models.CASCADE, related_name="memberships")
     profile = models.ForeignKey(PlayerProfile, on_delete=models.CASCADE, related_name="club_memberships")
@@ -739,7 +740,7 @@ class ClubBuildingType(models.Model):
     HOME = "home"
     WARDROBE = "wardrobe"
     EXPLORE = "explore"
-    EFFECT_CHOICES = [(XP, "XP"), (CLUB_XP, "Club XP"), (HOME, "Home"), (WARDROBE, "Wardrobe"), (EXPLORE, "Explore")]
+    EFFECT_CHOICES = [(XP, "Опыт"), (CLUB_XP, "Опыт клуба"), (HOME, "Дом"), (WARDROBE, "Гардероб"), (EXPLORE, "Исследования")]
 
     name = models.CharField(max_length=80, unique=True)
     description = models.CharField(max_length=180)
@@ -815,7 +816,7 @@ class ClubAnnouncement(models.Model):
 class FragmentType(models.Model):
     GARDEN = "garden"
     JEWEL = "jewel"
-    KIND_CHOICES = [(GARDEN, "Garden"), (JEWEL, "Jewel")]
+    KIND_CHOICES = [(GARDEN, "Сад"), (JEWEL, "Самоцвет")]
 
     name = models.CharField(max_length=80, unique=True)
     description = models.CharField(max_length=180)
@@ -883,7 +884,7 @@ class CompetitionMode(models.Model):
     AGILITY = "agility"
     CHARM = "charm"
     MOOD = "mood"
-    STAT_CHOICES = [(AGILITY, "Agility"), (CHARM, "Charm"), (MOOD, "Mood")]
+    STAT_CHOICES = [(AGILITY, "Ловкость"), (CHARM, "Шарм"), (MOOD, "Настроение")]
 
     name = models.CharField(max_length=80, unique=True)
     description = models.CharField(max_length=180)
