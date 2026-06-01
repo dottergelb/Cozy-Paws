@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block title %}Help - Cozy Paws{% endblock %}
+{% block content %}
+<section class="summary-row">
+    <div><span class="eyebrow">Help center</span><strong>Guides and support topics</strong></div>
+    <a class="button ghost" href="{% url 'support' %}">Tickets</a>
+</section>
+
+<section class="panel">
+    {% for article in articles %}
+        <article class="quest-card">
+            <div class="section-head"><h2>{{ article.title }}</h2><span class="badge">{{ article.category }}</span></div>
+            <p>{{ article.body|linebreaksbr }}</p>
+        </article>
+    {% empty %}
+        <p class="muted">No help articles yet.</p>
+    {% endfor %}
+</section>
+{% endblock %}

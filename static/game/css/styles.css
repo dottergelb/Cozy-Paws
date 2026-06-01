@@ -358,12 +358,18 @@ svg {
 }
 
 .stack-form input,
-.stack-form select {
+.stack-form select,
+.stack-form textarea {
     width: 100%;
     border: 1px solid var(--line);
     border-radius: 8px;
     padding: 12px;
     background: #fff;
+}
+
+.stack-form textarea {
+    min-height: 96px;
+    resize: vertical;
 }
 
 .helptext,

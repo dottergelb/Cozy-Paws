@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}Leagues - Cozy Paws{% endblock %}
+{% block content %}
+<section class="summary-row">
+    <div><span class="eyebrow">Competitions</span><strong>{% if pet %}{{ pet.name }} power {{ pet.show_power }}{% else %}No active pet{% endif %}</strong></div>
+    <div class="coins"><svg><use href="#i-coin"></use></svg>{{ profile.coins }}</div>
+</section>
+
+<section class="item-grid">
+    {% for mode in modes %}
+        <article class="item-card">
+            <div class="item-icon play"><svg><use href="#i-star"></use></svg></div>
+            <h2>{{ mode.name }}</h2>
+            <p>{{ mode.description }}</p>
+            <div class="effect-list">
+                <span>{{ mode.stat }}</span>
+                <span>Level {{ mode.min_level }}+</span>
+                <span>Entry {{ mode.entry_fee }}</span>
+                <span>Reward {{ mode.reward_coins }} coins</span>
+            </div>
+            <form method="post" action="{% url 'enter_competition' mode.id %}">
+                {% csrf_token %}
+                <button class="button primary" type="submit">Enter</button>
+            </form>
+        </article>
+    {% empty %}
+        <section class="empty-state"><p>No competition modes yet.</p></section>
+    {% endfor %}
+</section>
+
+<section class="panel">
+    <div class="section-head"><h2>Your entries</h2><span class="badge">{{ entries|length }}</span></div>
+    <div class="log-list">
+        {% for entry in entries %}
+            <div class="log-line"><span>{{ entry.mode.name }} · {{ entry.league }}</span><strong>{{ entry.score }} points</strong></div>
+        {% empty %}
+            <p class="muted">Enter a league to see results.</p>
+        {% endfor %}
+    </div>
+</section>
+
+<section class="rating-list">
+    {% for entry in leaders %}
+        <article class="rating-row">
+            <span class="rank">{{ forloop.counter }}</span>
+            <div><strong>{{ entry.pet.name }}</strong><span>{{ entry.profile.public_name }} · {{ entry.mode.name }}</span></div>
+            <span class="active-dot">{{ entry.score }}</span>
+        </article>
+    {% endfor %}
+</section>
+{% endblock %}

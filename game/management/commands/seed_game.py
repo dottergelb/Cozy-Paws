@@ -3,7 +3,9 @@ from django.core.management.base import BaseCommand
 
 from game.models import (
     Achievement,
+    AdventureRoute,
     AssistantType,
+    ChestType,
     Club,
     ClubBuilding,
     ClubBuildingType,
@@ -11,10 +13,19 @@ from game.models import (
     ClubMembership,
     CollectionPiece,
     CollectionSet,
+    CompetitionMode,
     ExplorationSite,
+    ForumCategory,
+    ForumPost,
+    ForumThread,
+    FragmentType,
     FurnitureItem,
+    GamePreference,
+    GiftCatalogItem,
+    HelpArticle,
     Item,
     OwnedCollectionPiece,
+    OwnedFragment,
     OwnedFurniture,
     OwnedTrophy,
     Pet,
@@ -341,6 +352,110 @@ class Command(BaseCommand):
                 },
             )
 
+        fragment_types = [
+            ("Rose Window Seeds", "A garden keepsake grown from trail fragments.", FragmentType.GARDEN, 4, 5, "#ef7b6a"),
+            ("Fern Lantern Sprouts", "Fresh green fragments for a calm home corner.", FragmentType.GARDEN, 5, 7, "#45b08c"),
+            ("Sapphire Paw Shards", "Small blue jewel pieces with a style bonus.", FragmentType.JEWEL, 5, 8, "#75a7e6"),
+            ("Amber Star Chips", "Warm jewel chips found in rare rewards.", FragmentType.JEWEL, 6, 10, "#f3b84b"),
+        ]
+        for name, description, kind, required_fragments, beauty_bonus, color in fragment_types:
+            FragmentType.objects.update_or_create(
+                name=name,
+                defaults={
+                    "description": description,
+                    "kind": kind,
+                    "required_fragments": required_fragments,
+                    "beauty_bonus": beauty_bonus,
+                    "color": color,
+                },
+            )
+
+        adventures = [
+            ("Bakery Errand", "A quick walk past warm windows and friendly smells.", 1, 1, 8, 14, 1, 9),
+            ("Picnic Trail", "A longer route with better fragment chances.", 2, 3, 14, 28, 3, 18),
+            ("Lantern Bridge", "A calm evening adventure for trained pets.", 4, 5, 22, 55, 6, 30),
+        ]
+        for name, description, min_level, duration_minutes, energy_cost, reward_coins, reward_hearts, reward_experience in adventures:
+            AdventureRoute.objects.update_or_create(
+                name=name,
+                defaults={
+                    "description": description,
+                    "min_level": min_level,
+                    "duration_minutes": duration_minutes,
+                    "energy_cost": energy_cost,
+                    "reward_coins": reward_coins,
+                    "reward_hearts": reward_hearts,
+                    "reward_experience": reward_experience,
+                    "active": True,
+                },
+            )
+
+        competitions = [
+            ("Ribbon Dash", "A light agility league for everyday training.", CompetitionMode.AGILITY, 1, 8, 18, 2),
+            ("Charm Parade", "A friendly stage where style and charm matter.", CompetitionMode.CHARM, 2, 16, 34, 4),
+            ("Cozy Care Cup", "A mood-focused league for well cared pets.", CompetitionMode.MOOD, 3, 24, 48, 6),
+        ]
+        for name, description, stat, min_level, entry_fee, reward_coins, reward_hearts in competitions:
+            CompetitionMode.objects.update_or_create(
+                name=name,
+                defaults={
+                    "description": description,
+                    "stat": stat,
+                    "min_level": min_level,
+                    "entry_fee": entry_fee,
+                    "reward_coins": reward_coins,
+                    "reward_hearts": reward_hearts,
+                    "active": True,
+                },
+            )
+
+        chests = [
+            ("Daily Ribbon Chest", "A small daily chest with coins and fragments.", 2, 3, 18, 42, "#ef7b6a"),
+            ("Garden Chest", "A better chest for garden and jewel progress.", 5, 2, 45, 95, "#45b08c"),
+        ]
+        for name, description, key_cost, daily_limit, min_coins, max_coins, color in chests:
+            ChestType.objects.update_or_create(
+                name=name,
+                defaults={
+                    "description": description,
+                    "key_cost": key_cost,
+                    "daily_limit": daily_limit,
+                    "min_coins": min_coins,
+                    "max_coins": max_coins,
+                    "color": color,
+                },
+            )
+
+        gifts = [
+            ("Cozy Card", "A tiny card for a friendly player.", 3, "#75a7e6"),
+            ("Ribbon Bouquet", "A cheerful gift made for celebrations.", 6, "#ef7b6a"),
+            ("Star Cookie Box", "A sweet premium present.", 9, "#f3b84b"),
+        ]
+        for name, description, price_hearts, color in gifts:
+            GiftCatalogItem.objects.update_or_create(
+                name=name,
+                defaults={"description": description, "price_hearts": price_hearts, "color": color},
+            )
+
+        help_articles = [
+            ("Basics", "Starting out", "Care for your active pet, finish daily quests, and use rewards to expand your home."),
+            ("Economy", "Coins and hearts", "Coins buy items and upgrades. Hearts open chests, train helpers, and send gifts."),
+            ("Progression", "Collections and fragments", "Exploration, adventures, and chests grant pieces that unlock permanent beauty bonuses."),
+            ("Clubs", "Club growth", "Club members donate resources, upgrade buildings, and coordinate through announcements."),
+        ]
+        for category, title, body in help_articles:
+            HelpArticle.objects.update_or_create(title=title, defaults={"category": category, "body": body, "active": True})
+
+        forum_categories = [
+            ("News Board", "Updates and announcements for local Cozy Paws testing.", True),
+            ("Keeper Talk", "General player discussion and tips.", False),
+            ("Help Desk", "Questions about pets, economy, clubs, and rewards.", False),
+        ]
+        seeded_categories = []
+        for name, description, is_news in forum_categories:
+            category, _ = ForumCategory.objects.update_or_create(name=name, defaults={"description": description, "is_news": is_news})
+            seeded_categories.append(category)
+
         assistants = [
             ("Kind Caretaker", "Improves long-term care efficiency.", AssistantType.CARETAKER, 20, 20, 1),
             ("Room Stylist", "Boosts style planning and room growth.", AssistantType.STYLIST, 24, 20, 1),
@@ -387,6 +502,7 @@ class Command(BaseCommand):
         profile.coins = max(profile.coins, 180)
         profile.hearts = max(profile.hearts, 120)
         profile.save(update_fields=["display_name", "coins", "hearts"])
+        GamePreference.objects.get_or_create(profile=profile)
         Pet.objects.get_or_create(owner=demo, name="Мята", defaults={"species": Pet.FOX, "active": True, "level": 2})
 
         for furniture in FurnitureItem.objects.order_by("price")[:2]:
@@ -402,6 +518,10 @@ class Command(BaseCommand):
         first_trophy = Trophy.objects.order_by("rarity", "name").first()
         if first_trophy:
             OwnedTrophy.objects.get_or_create(profile=profile, trophy=first_trophy)
+        for fragment_type in FragmentType.objects.order_by("kind", "name")[:3]:
+            owned_fragment, _ = OwnedFragment.objects.get_or_create(profile=profile, fragment_type=fragment_type)
+            owned_fragment.quantity = max(owned_fragment.quantity, 3)
+            owned_fragment.save(update_fields=["quantity"])
         for assistant_type in AssistantType.objects.all():
             PlayerAssistant.objects.get_or_create(profile=profile, assistant_type=assistant_type)
         club, _ = Club.objects.get_or_create(
@@ -412,5 +532,9 @@ class Command(BaseCommand):
         for building_type in ClubBuildingType.objects.all():
             ClubBuilding.objects.get_or_create(club=club, building_type=building_type, defaults={"level": 1})
         ClubHistoryEvent.objects.get_or_create(club=club, actor=profile, text="The club opened its cozy doors.")
+        news_category = ForumCategory.objects.filter(is_news=True).first()
+        if news_category:
+            thread, _ = ForumThread.objects.get_or_create(category=news_category, title="Welcome to Cozy Paws", defaults={"author": profile, "pinned": True})
+            ForumPost.objects.get_or_create(thread=thread, author=profile, body="This local build now includes clubs, adventures, chests, gifts, and forum pages.")
 
         self.stdout.write(self.style.SUCCESS("Starter data is ready. Demo login: demo / demo12345"))

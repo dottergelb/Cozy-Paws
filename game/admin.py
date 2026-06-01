@@ -3,8 +3,11 @@ from django.contrib import admin
 from .models import (
     ActionCooldown,
     ActionLog,
+    AdventureRoute,
     Achievement,
     AssistantType,
+    ChestOpening,
+    ChestType,
     ChatMessage,
     Club,
     ClubAnnouncement,
@@ -17,18 +20,29 @@ from .models import (
     CollectionPiece,
     CollectionSet,
     CompletedCollection,
+    CompetitionEntry,
+    CompetitionMode,
     EquippedWearable,
     ExplorationLog,
     ExplorationSite,
+    ForumCategory,
+    ForumPost,
+    ForumThread,
     Friendship,
+    FragmentType,
     FurnitureItem,
+    GamePreference,
+    GiftCatalogItem,
+    HelpArticle,
     InventoryItem,
     Item,
     OwnedCollectionPiece,
+    OwnedFragment,
     OwnedFurniture,
     OwnedTrophy,
     OwnedWearable,
     Pet,
+    PetAdventure,
     PetShow,
     PlayerAssistant,
     PlayerAchievement,
@@ -37,6 +51,7 @@ from .models import (
     Quest,
     QuestProgress,
     ShowEntry,
+    SentGift,
     SupportTicket,
     Trophy,
     UserReport,
@@ -272,3 +287,87 @@ class ClubHistoryEventAdmin(admin.ModelAdmin):
 @admin.register(ClubAnnouncement)
 class ClubAnnouncementAdmin(admin.ModelAdmin):
     list_display = ("club", "author", "body", "created_at")
+
+
+@admin.register(FragmentType)
+class FragmentTypeAdmin(admin.ModelAdmin):
+    list_display = ("name", "kind", "required_fragments", "beauty_bonus")
+    list_filter = ("kind",)
+
+
+@admin.register(OwnedFragment)
+class OwnedFragmentAdmin(admin.ModelAdmin):
+    list_display = ("profile", "fragment_type", "quantity", "completed_count")
+
+
+@admin.register(AdventureRoute)
+class AdventureRouteAdmin(admin.ModelAdmin):
+    list_display = ("name", "min_level", "duration_minutes", "energy_cost", "reward_coins", "active")
+    list_filter = ("active",)
+
+
+@admin.register(PetAdventure)
+class PetAdventureAdmin(admin.ModelAdmin):
+    list_display = ("profile", "pet", "route", "finishes_at", "completed")
+    list_filter = ("completed",)
+
+
+@admin.register(CompetitionMode)
+class CompetitionModeAdmin(admin.ModelAdmin):
+    list_display = ("name", "stat", "min_level", "entry_fee", "reward_coins", "active")
+    list_filter = ("stat", "active")
+
+
+@admin.register(CompetitionEntry)
+class CompetitionEntryAdmin(admin.ModelAdmin):
+    list_display = ("mode", "profile", "pet", "score", "league", "created_at")
+    list_filter = ("mode", "league")
+
+
+@admin.register(ChestType)
+class ChestTypeAdmin(admin.ModelAdmin):
+    list_display = ("name", "key_cost", "daily_limit", "min_coins", "max_coins")
+
+
+@admin.register(ChestOpening)
+class ChestOpeningAdmin(admin.ModelAdmin):
+    list_display = ("profile", "chest_type", "reward_text", "coins", "hearts", "created_at")
+
+
+@admin.register(GiftCatalogItem)
+class GiftCatalogItemAdmin(admin.ModelAdmin):
+    list_display = ("name", "price_hearts")
+
+
+@admin.register(SentGift)
+class SentGiftAdmin(admin.ModelAdmin):
+    list_display = ("sender", "recipient", "gift", "created_at")
+
+
+@admin.register(ForumCategory)
+class ForumCategoryAdmin(admin.ModelAdmin):
+    list_display = ("name", "club", "is_news")
+    list_filter = ("is_news",)
+
+
+@admin.register(ForumThread)
+class ForumThreadAdmin(admin.ModelAdmin):
+    list_display = ("title", "category", "author", "pinned", "locked", "updated_at")
+    list_filter = ("pinned", "locked", "category")
+
+
+@admin.register(ForumPost)
+class ForumPostAdmin(admin.ModelAdmin):
+    list_display = ("thread", "author", "hidden", "created_at")
+    list_filter = ("hidden",)
+
+
+@admin.register(HelpArticle)
+class HelpArticleAdmin(admin.ModelAdmin):
+    list_display = ("title", "category", "active")
+    list_filter = ("category", "active")
+
+
+@admin.register(GamePreference)
+class GamePreferenceAdmin(admin.ModelAdmin):
+    list_display = ("profile", "compact_mode", "show_bottom_nav", "show_quick_actions", "low_bandwidth")

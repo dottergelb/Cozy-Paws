@@ -12,8 +12,11 @@ from .forms import ChatMessageForm, PetForm, PrivateMessageForm, ProfileSettings
 from .models import (
     ActionCooldown,
     ActionLog,
+    AdventureRoute,
     Achievement,
     AssistantType,
+    ChestOpening,
+    ChestType,
     ChatMessage,
     Club,
     ClubAnnouncement,
@@ -26,18 +29,29 @@ from .models import (
     CollectionPiece,
     CollectionSet,
     CompletedCollection,
+    CompetitionEntry,
+    CompetitionMode,
     EquippedWearable,
     ExplorationLog,
     ExplorationSite,
+    ForumCategory,
+    ForumPost,
+    ForumThread,
     Friendship,
+    FragmentType,
     FurnitureItem,
+    GamePreference,
+    GiftCatalogItem,
+    HelpArticle,
     InventoryItem,
     Item,
     OwnedCollectionPiece,
+    OwnedFragment,
     OwnedFurniture,
     OwnedTrophy,
     OwnedWearable,
     Pet,
+    PetAdventure,
     PetShow,
     PlayerAssistant,
     PlayerAchievement,
@@ -46,6 +60,7 @@ from .models import (
     Quest,
     QuestProgress,
     ShowEntry,
+    SentGift,
     SupportTicket,
     Trophy,
     UserReport,
@@ -108,6 +123,11 @@ COOLDOWNS = {
     "explore": 8,
     "assistant": 5,
     "club": 5,
+    "adventure": 5,
+    "competition": 5,
+    "chest": 5,
+    "gift": 5,
+    "forum": 5,
 }
 
 
@@ -116,6 +136,11 @@ def get_profile(user):
     profile.last_activity_at = timezone.now()
     profile.save(update_fields=["last_activity_at"])
     return profile
+
+
+def get_preferences(profile):
+    preferences, _created = GamePreference.objects.get_or_create(profile=profile)
+    return preferences
 
 
 def online_count():
@@ -202,6 +227,16 @@ def award_trophy(profile, trophy, pet=None):
     if created:
         log_action(profile, f"Trophy earned: {trophy.name}.", pet)
     return created
+
+
+def award_random_fragment(profile):
+    fragment_type = FragmentType.objects.order_by("?").first()
+    if not fragment_type:
+        return None
+    owned, _created = OwnedFragment.objects.get_or_create(profile=profile, fragment_type=fragment_type)
+    owned.quantity += 1
+    owned.save(update_fields=["quantity"])
+    return owned
 
 
 def complete_ready_collections(profile):
@@ -305,6 +340,7 @@ def dashboard(request):
         "equipped": pet.equipped_wearables.select_related("wearable") if pet else [],
         "online_count": online_count(),
         "actions": ACTION_RULES,
+        "preferences": get_preferences(profile),
     }
     check_passive_achievements(request, profile)
     return render(request, "game/dashboard.html", context)
@@ -1255,6 +1291,350 @@ def post_club_announcement(request, club_id):
     ClubHistoryEvent.objects.create(club=club, actor=profile_obj, text="Club announcement posted.")
     messages.success(request, "Announcement posted.")
     return redirect("club_detail", club_id=club.id)
+
+
+@login_required
+def fragments(request):
+    profile_obj = get_profile(request.user)
+    owned_map = {owned.fragment_type_id: owned for owned in profile_obj.fragments.select_related("fragment_type")}
+    rows = []
+    for fragment_type in FragmentType.objects.order_by("kind", "name"):
+        owned = owned_map.get(fragment_type.id)
+        rows.append(
+            {
+                "fragment_type": fragment_type,
+                "owned": owned,
+                "quantity": owned.quantity if owned else 0,
+                "completed_count": owned.completed_count if owned else 0,
+                "progress": min(100, round(((owned.quantity if owned else 0) / fragment_type.required_fragments) * 100)),
+            }
+        )
+    return render(request, "game/fragments.html", {"profile": profile_obj, "rows": rows})
+
+
+@login_required
+def craft_fragment(request, fragment_id):
+    if request.method != "POST":
+        return redirect("fragments")
+    profile_obj = get_profile(request.user)
+    owned = get_object_or_404(OwnedFragment.objects.select_related("fragment_type"), id=fragment_id, profile=profile_obj)
+    required = owned.fragment_type.required_fragments
+    if owned.quantity < required:
+        messages.error(request, "Not enough fragments to complete this keepsake.")
+        return redirect("fragments")
+    owned.quantity -= required
+    owned.completed_count += 1
+    owned.save(update_fields=["quantity", "completed_count"])
+    log_action(profile_obj, f"Completed fragment keepsake: {owned.fragment_type.name}.")
+    messages.success(request, f"{owned.fragment_type.name} completed. Permanent beauty +{owned.fragment_type.beauty_bonus}.")
+    return redirect("fragments")
+
+
+@login_required
+def adventures(request):
+    profile_obj = get_profile(request.user)
+    pet = active_pet(request.user)
+    return render(
+        request,
+        "game/adventures.html",
+        {
+            "profile": profile_obj,
+            "pet": pet,
+            "routes": AdventureRoute.objects.filter(active=True).order_by("min_level", "duration_minutes"),
+            "active_adventures": profile_obj.adventures.filter(completed=False).select_related("route", "pet"),
+            "history": profile_obj.adventures.filter(completed=True).select_related("route", "pet")[:12],
+        },
+    )
+
+
+@login_required
+def start_adventure(request, route_id):
+    if request.method != "POST":
+        return redirect("adventures")
+    profile_obj = get_profile(request.user)
+    pet = active_pet(request.user)
+    route = get_object_or_404(AdventureRoute, id=route_id, active=True)
+    if not pet:
+        messages.error(request, "Create a pet before starting adventures.")
+        return redirect("create_pet")
+    if not enforce_cooldown(request, profile_obj, "adventure"):
+        return redirect("adventures")
+    if PetAdventure.objects.filter(profile=profile_obj, pet=pet, completed=False).exists():
+        messages.error(request, f"{pet.name} is already on an adventure.")
+        return redirect("adventures")
+    if pet.level < route.min_level:
+        messages.error(request, "Your pet level is too low for this adventure.")
+        return redirect("adventures")
+    if pet.energy < route.energy_cost:
+        messages.error(request, "Not enough energy for this adventure.")
+        return redirect("adventures")
+    pet.change_stats(energy=-route.energy_cost, mood=2, hunger=-3)
+    pet.save()
+    finishes_at = timezone.now() + timezone.timedelta(minutes=route.duration_minutes)
+    PetAdventure.objects.create(profile=profile_obj, pet=pet, route=route, finishes_at=finishes_at)
+    log_action(profile_obj, f"{pet.name} started adventure: {route.name}.", pet)
+    messages.success(request, f"{pet.name} started {route.name}.")
+    return redirect("adventures")
+
+
+@login_required
+def finish_adventure(request, adventure_id):
+    if request.method != "POST":
+        return redirect("adventures")
+    profile_obj = get_profile(request.user)
+    adventure = get_object_or_404(PetAdventure.objects.select_related("route", "pet"), id=adventure_id, profile=profile_obj, completed=False)
+    if not adventure.is_ready:
+        messages.error(request, "This adventure is still in progress.")
+        return redirect("adventures")
+    route = adventure.route
+    pet = adventure.pet
+    profile_obj.coins += route.reward_coins
+    profile_obj.hearts += route.reward_hearts
+    pet.add_experience(route.reward_experience)
+    pet.change_stats(mood=8, hunger=-2)
+    fragment = award_random_fragment(profile_obj)
+    adventure.completed = True
+    profile_obj.save(update_fields=["coins", "hearts"])
+    pet.save()
+    adventure.save(update_fields=["completed"])
+    reward_note = f", fragment {fragment.fragment_type.name}" if fragment else ""
+    log_action(profile_obj, f"{pet.name} completed adventure: {route.name}{reward_note}.", pet)
+    messages.success(request, f"Adventure complete: +{route.reward_coins} coins, +{route.reward_hearts} hearts{reward_note}.")
+    return redirect("adventures")
+
+
+@login_required
+def competitions(request):
+    profile_obj = get_profile(request.user)
+    return render(
+        request,
+        "game/competitions.html",
+        {
+            "profile": profile_obj,
+            "pet": active_pet(request.user),
+            "modes": CompetitionMode.objects.filter(active=True).order_by("min_level", "entry_fee"),
+            "entries": profile_obj.competition_entries.select_related("mode", "pet")[:12],
+            "leaders": CompetitionEntry.objects.select_related("profile__user", "pet", "mode")[:20],
+        },
+    )
+
+
+@login_required
+def enter_competition(request, mode_id):
+    if request.method != "POST":
+        return redirect("competitions")
+    profile_obj = get_profile(request.user)
+    pet = active_pet(request.user)
+    mode = get_object_or_404(CompetitionMode, id=mode_id, active=True)
+    if not pet:
+        messages.error(request, "Create a pet before entering competitions.")
+        return redirect("create_pet")
+    if not enforce_cooldown(request, profile_obj, "competition"):
+        return redirect("competitions")
+    if pet.level < mode.min_level:
+        messages.error(request, "Your pet level is too low for this competition.")
+        return redirect("competitions")
+    if profile_obj.coins < mode.entry_fee:
+        messages.error(request, "Not enough coins for the entry fee.")
+        return redirect("competitions")
+    if pet.energy < 8:
+        messages.error(request, "Not enough energy for competition.")
+        return redirect("competitions")
+    base_stat = pet.mood if mode.stat == CompetitionMode.MOOD else getattr(pet, mode.stat)
+    score = base_stat * 4 + pet.level * 9 + pet.beauty + profile_obj.passive_beauty_bonus + random.randint(1, 18)
+    league = "Diamond" if score >= 120 else "Gold" if score >= 90 else "Silver" if score >= 60 else "Sprout"
+    profile_obj.coins -= mode.entry_fee
+    profile_obj.coins += mode.reward_coins
+    profile_obj.hearts += mode.reward_hearts
+    pet.change_stats(energy=-8, mood=5, hunger=-4)
+    pet.add_experience(10)
+    profile_obj.save(update_fields=["coins", "hearts"])
+    pet.save()
+    CompetitionEntry.objects.create(mode=mode, profile=profile_obj, pet=pet, score=score, league=league)
+    add_quest_progress(profile_obj, Quest.SHOW)
+    log_action(profile_obj, f"{pet.name} entered {mode.name} and reached {league} league.", pet)
+    messages.success(request, f"Competition complete: {score} points, {league} league.")
+    return redirect("competitions")
+
+
+@login_required
+def chests(request):
+    profile_obj = get_profile(request.user)
+    today = timezone.localdate()
+    rows = []
+    for chest in ChestType.objects.order_by("key_cost", "name"):
+        used = profile_obj.chest_openings.filter(chest_type=chest, created_at__date=today).count()
+        rows.append({"chest": chest, "used": used, "left": max(0, chest.daily_limit - used)})
+    return render(request, "game/chests.html", {"profile": profile_obj, "rows": rows, "openings": profile_obj.chest_openings.select_related("chest_type")[:12]})
+
+
+@login_required
+def open_chest(request, chest_id):
+    if request.method != "POST":
+        return redirect("chests")
+    profile_obj = get_profile(request.user)
+    chest = get_object_or_404(ChestType, id=chest_id)
+    if not enforce_cooldown(request, profile_obj, "chest"):
+        return redirect("chests")
+    used = profile_obj.chest_openings.filter(chest_type=chest, created_at__date=timezone.localdate()).count()
+    if used >= chest.daily_limit:
+        messages.error(request, "Daily limit for this chest is reached.")
+        return redirect("chests")
+    if profile_obj.hearts < chest.key_cost:
+        messages.error(request, "Not enough hearts to open this chest.")
+        return redirect("chests")
+    coins = random.randint(chest.min_coins, chest.max_coins)
+    hearts = random.randint(0, 2)
+    profile_obj.hearts -= chest.key_cost
+    profile_obj.coins += coins
+    profile_obj.hearts += hearts
+    fragment = award_random_fragment(profile_obj)
+    reward_text = f"+{coins} coins, +{hearts} hearts" + (f", {fragment.fragment_type.name} fragment" if fragment else "")
+    profile_obj.save(update_fields=["coins", "hearts"])
+    ChestOpening.objects.create(profile=profile_obj, chest_type=chest, reward_text=reward_text, coins=coins, hearts=hearts)
+    log_action(profile_obj, f"Opened chest {chest.name}: {reward_text}.")
+    messages.success(request, f"Chest opened: {reward_text}.")
+    return redirect("chests")
+
+
+@login_required
+def gifts(request):
+    profile_obj = get_profile(request.user)
+    players = PlayerProfile.objects.exclude(id=profile_obj.id).select_related("user").order_by("user__username")[:25]
+    return render(
+        request,
+        "game/gifts.html",
+        {
+            "profile": profile_obj,
+            "gifts": GiftCatalogItem.objects.order_by("price_hearts", "name"),
+            "players": players,
+            "sent": profile_obj.sent_gifts.select_related("recipient__user", "gift")[:10],
+            "received": profile_obj.received_gifts.select_related("sender__user", "gift")[:10],
+        },
+    )
+
+
+@login_required
+def send_gift(request, gift_id, profile_id):
+    if request.method != "POST":
+        return redirect("gifts")
+    profile_obj = get_profile(request.user)
+    gift = get_object_or_404(GiftCatalogItem, id=gift_id)
+    recipient = get_object_or_404(PlayerProfile, id=profile_id)
+    if recipient == profile_obj:
+        messages.error(request, "You cannot send a gift to yourself.")
+        return redirect("gifts")
+    if not enforce_cooldown(request, profile_obj, "gift"):
+        return redirect("gifts")
+    if profile_obj.hearts < gift.price_hearts:
+        messages.error(request, "Not enough hearts for this gift.")
+        return redirect("gifts")
+    message = request.POST.get("message", "").strip()[:160]
+    profile_obj.hearts -= gift.price_hearts
+    profile_obj.save(update_fields=["hearts"])
+    SentGift.objects.create(sender=profile_obj, recipient=recipient, gift=gift, message=message)
+    log_action(profile_obj, f"Sent gift {gift.name} to {recipient.public_name}.")
+    messages.success(request, f"Gift sent to {recipient.public_name}.")
+    return redirect("gifts")
+
+
+@login_required
+def forum(request):
+    profile_obj = get_profile(request.user)
+    return render(
+        request,
+        "game/forum.html",
+        {
+            "profile": profile_obj,
+            "categories": ForumCategory.objects.annotate(thread_count=Count("threads")).order_by("-is_news", "name"),
+            "recent_threads": ForumThread.objects.select_related("category", "author__user")[:10],
+        },
+    )
+
+
+@login_required
+def forum_category(request, category_id):
+    profile_obj = get_profile(request.user)
+    category = get_object_or_404(ForumCategory, id=category_id)
+    return render(
+        request,
+        "game/forum_category.html",
+        {
+            "profile": profile_obj,
+            "category": category,
+            "threads": category.threads.select_related("author__user").annotate(post_count=Count("posts")),
+        },
+    )
+
+
+@login_required
+def create_forum_thread(request, category_id):
+    if request.method != "POST":
+        return redirect("forum_category", category_id=category_id)
+    profile_obj = get_profile(request.user)
+    category = get_object_or_404(ForumCategory, id=category_id)
+    if not enforce_cooldown(request, profile_obj, "forum"):
+        return redirect("forum_category", category_id=category.id)
+    title = request.POST.get("title", "").strip()[:120]
+    body = request.POST.get("body", "").strip()[:1200]
+    if len(title) < 3 or len(body) < 3:
+        messages.error(request, "Thread title and text must be filled.")
+        return redirect("forum_category", category_id=category.id)
+    thread = ForumThread.objects.create(category=category, author=profile_obj, title=title)
+    ForumPost.objects.create(thread=thread, author=profile_obj, body=body)
+    messages.success(request, "Thread created.")
+    return redirect("forum_thread", thread_id=thread.id)
+
+
+@login_required
+def forum_thread(request, thread_id):
+    profile_obj = get_profile(request.user)
+    thread = get_object_or_404(ForumThread.objects.select_related("category", "author__user"), id=thread_id)
+    return render(request, "game/forum_thread.html", {"profile": profile_obj, "thread": thread, "posts": thread.posts.filter(hidden=False).select_related("author__user")})
+
+
+@login_required
+def reply_forum_thread(request, thread_id):
+    if request.method != "POST":
+        return redirect("forum_thread", thread_id=thread_id)
+    profile_obj = get_profile(request.user)
+    thread = get_object_or_404(ForumThread, id=thread_id)
+    if thread.locked:
+        messages.error(request, "This thread is locked.")
+        return redirect("forum_thread", thread_id=thread.id)
+    if not enforce_cooldown(request, profile_obj, "forum"):
+        return redirect("forum_thread", thread_id=thread.id)
+    body = request.POST.get("body", "").strip()[:1200]
+    if len(body) < 2:
+        messages.error(request, "Reply cannot be empty.")
+        return redirect("forum_thread", thread_id=thread.id)
+    ForumPost.objects.create(thread=thread, author=profile_obj, body=body)
+    thread.save(update_fields=["updated_at"])
+    messages.success(request, "Reply posted.")
+    return redirect("forum_thread", thread_id=thread.id)
+
+
+@login_required
+def help_center(request):
+    profile_obj = get_profile(request.user)
+    articles = HelpArticle.objects.filter(active=True).order_by("category", "title")
+    return render(request, "game/help_center.html", {"profile": profile_obj, "articles": articles})
+
+
+@login_required
+def game_settings(request):
+    profile_obj = get_profile(request.user)
+    preferences = get_preferences(profile_obj)
+    if request.method == "POST":
+        preferences.compact_mode = bool(request.POST.get("compact_mode"))
+        preferences.show_bottom_nav = bool(request.POST.get("show_bottom_nav"))
+        preferences.show_quick_actions = bool(request.POST.get("show_quick_actions"))
+        preferences.reduced_motion = bool(request.POST.get("reduced_motion"))
+        preferences.low_bandwidth = bool(request.POST.get("low_bandwidth"))
+        preferences.save()
+        messages.success(request, "Game settings saved.")
+        return redirect("game_settings")
+    return render(request, "game/game_settings.html", {"profile": profile_obj, "preferences": preferences})
 
 
 def rating(request):

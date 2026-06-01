@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block title %}{{ thread.title }} - Cozy Paws{% endblock %}
+{% block content %}
+<section class="summary-row">
+    <div><span class="eyebrow">{{ thread.category.name }}</span><strong>{{ thread.title }}</strong></div>
+    <a class="button ghost" href="{% url 'forum_category' thread.category.id %}">Back</a>
+</section>
+
+<section class="panel">
+    <div class="log-list">
+        {% for post in posts %}
+            <div class="quest-card">
+                <div class="section-head"><h2>{{ post.author.public_name|default:"Player" }}</h2><span class="badge">{{ post.created_at|date:"d M H:i" }}</span></div>
+                <p>{{ post.body|linebreaksbr }}</p>
+            </div>
+        {% empty %}
+            <p class="muted">No posts yet.</p>
+        {% endfor %}
+    </div>
+</section>
+
+<section class="panel">
+    <div class="section-head"><h2>Reply</h2>{% if thread.locked %}<span class="badge">Locked</span>{% endif %}</div>
+    <form class="stack-form" method="post" action="{% url 'reply_forum_thread' thread.id %}">
+        {% csrf_token %}
+        <p><label>Text</label><textarea name="body" maxlength="1200" required {% if thread.locked %}disabled{% endif %}></textarea></p>
+        <button class="button primary" type="submit" {% if thread.locked %}disabled{% endif %}>Post</button>
+    </form>
+</section>
+{% endblock %}

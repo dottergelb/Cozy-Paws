@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block title %}Adventures - Cozy Paws{% endblock %}
+{% block content %}
+<section class="summary-row">
+    <div><span class="eyebrow">Adventures</span><strong>{% if pet %}{{ pet.name }} energy {{ pet.energy }}{% else %}No active pet{% endif %}</strong></div>
+    <div class="coins"><svg><use href="#i-coin"></use></svg>{{ profile.coins }}</div>
+</section>
+
+<section class="panel">
+    <div class="section-head"><h2>In progress</h2><a href="{% url 'fragments' %}">Rewards</a></div>
+    <div class="log-list">
+        {% for adventure in active_adventures %}
+            <div class="log-line">
+                <span>{{ adventure.pet.name }} · {{ adventure.route.name }}</span>
+                <strong>{% if adventure.is_ready %}Ready{% else %}Until {{ adventure.finishes_at|date:"H:i" }}{% endif %}</strong>
+                <form method="post" action="{% url 'finish_adventure' adventure.id %}">
+                    {% csrf_token %}
+                    <button class="button primary" type="submit" {% if not adventure.is_ready %}disabled{% endif %}>Claim</button>
+                </form>
+            </div>
+        {% empty %}
+            <p class="muted">No pets are away right now.</p>
+        {% endfor %}
+    </div>
+</section>
+
+<section class="item-grid">
+    {% for route in routes %}
+        <article class="item-card">
+            <div class="item-icon food"><svg><use href="#i-paw"></use></svg></div>
+            <h2>{{ route.name }}</h2>
+            <p>{{ route.description }}</p>
+            <div class="effect-list">
+                <span>Level {{ route.min_level }}+</span>
+                <span>{{ route.duration_minutes }} min</span>
+                <span>Energy {{ route.energy_cost }}</span>
+                <span>Coins +{{ route.reward_coins }}</span>
+                <span>XP +{{ route.reward_experience }}</span>
+            </div>
+            <form method="post" action="{% url 'start_adventure' route.id %}">
+                {% csrf_token %}
+                <button class="button primary" type="submit">Start</button>
+            </form>
+        </article>
+    {% empty %}
+        <section class="empty-state"><p>No adventure routes yet.</p></section>
+    {% endfor %}
+</section>
+
+<section class="panel">
+    <div class="section-head"><h2>History</h2><span class="badge">{{ history|length }}</span></div>
+    <div class="log-list">
+        {% for adventure in history %}
+            <div class="log-line"><span>{{ adventure.started_at|date:"d M H:i" }}</span><strong>{{ adventure.pet.name }} finished {{ adventure.route.name }}</strong></div>
+        {% empty %}
+            <p class="muted">Completed adventures will appear here.</p>
+        {% endfor %}
+    </div>
+</section>
+{% endblock %}

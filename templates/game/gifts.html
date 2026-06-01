@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block title %}Gifts - Cozy Paws{% endblock %}
+{% block content %}
+<section class="summary-row">
+    <div><span class="eyebrow">Gifts</span><strong>Send small surprises</strong></div>
+    <div class="coins"><svg><use href="#i-star"></use></svg>{{ profile.hearts }}</div>
+</section>
+
+<section class="panel">
+    <div class="section-head"><h2>Players</h2><a href="{% url 'social' %}">Social</a></div>
+    {% for player in players %}
+        <div class="quest-card">
+            <div class="section-head"><h2>{{ player.public_name }}</h2><span class="badge">{{ player.coins }} coins</span></div>
+            {% for gift in gifts %}
+                <form class="stack-form" method="post" action="{% url 'send_gift' gift.id player.id %}">
+                    {% csrf_token %}
+                    <input name="message" maxlength="160" placeholder="Short note">
+                    <button class="button primary" type="submit">{{ gift.name }} · {{ gift.price_hearts }} hearts</button>
+                </form>
+            {% endfor %}
+        </div>
+    {% empty %}
+        <p class="muted">Create another player to test gifts.</p>
+    {% endfor %}
+</section>
+
+<section class="panel">
+    <div class="section-head"><h2>Received</h2><span class="badge">{{ received|length }}</span></div>
+    <div class="log-list">
+        {% for item in received %}
+            <div class="log-line"><span>{{ item.sender.public_name }}</span><strong>{{ item.gift.name }}{% if item.message %}: {{ item.message }}{% endif %}</strong></div>
+        {% empty %}
+            <p class="muted">Incoming gifts will appear here.</p>
+        {% endfor %}
+    </div>
+</section>
+
+<section class="panel">
+    <div class="section-head"><h2>Sent</h2><span class="badge">{{ sent|length }}</span></div>
+    <div class="log-list">
+        {% for item in sent %}
+            <div class="log-line"><span>{{ item.recipient.public_name }}</span><strong>{{ item.gift.name }}</strong></div>
+        {% empty %}
+            <p class="muted">No gifts sent yet.</p>
+        {% endfor %}
+    </div>
+</section>
+{% endblock %}

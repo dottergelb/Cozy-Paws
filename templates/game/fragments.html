@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block title %}Garden - Cozy Paws{% endblock %}
+{% block content %}
+<section class="summary-row">
+    <div><span class="eyebrow">Garden and jewels</span><strong>Permanent keepsakes</strong></div>
+    <div class="coins"><svg><use href="#i-star"></use></svg>{{ profile.passive_beauty_bonus }}</div>
+</section>
+
+<section class="item-grid">
+    {% for row in rows %}
+        <article class="item-card">
+            <div class="item-icon care" style="background: {{ row.fragment_type.color }}"><svg><use href="#i-star"></use></svg></div>
+            <h2>{{ row.fragment_type.name }}</h2>
+            <p>{{ row.fragment_type.description }}</p>
+            <div class="effect-list">
+                <span>{{ row.fragment_type.kind }}</span>
+                <span>{{ row.quantity }}/{{ row.fragment_type.required_fragments }} fragments</span>
+                <span>Completed {{ row.completed_count }}</span>
+                <span>Beauty +{{ row.fragment_type.beauty_bonus }}</span>
+            </div>
+            <div class="bar"><span style="width: {{ row.progress }}%"></span></div>
+            {% if row.owned %}
+                <form method="post" action="{% url 'craft_fragment' row.owned.id %}">
+                    {% csrf_token %}
+                    <button class="button primary" type="submit" {% if row.quantity < row.fragment_type.required_fragments %}disabled{% endif %}>Complete</button>
+                </form>
+            {% else %}
+                <button class="button ghost" disabled>Find fragments first</button>
+            {% endif %}
+        </article>
+    {% empty %}
+        <section class="empty-state"><p>No garden or jewel fragments yet.</p></section>
+    {% endfor %}
+</section>
+{% endblock %}

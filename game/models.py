@@ -29,7 +29,8 @@ class PlayerProfile(models.Model):
         furniture = sum(piece.beauty_total for piece in self.furniture.select_related("item").filter(placed=True))
         trophies = self.trophies.aggregate(total=models.Sum("trophy__beauty_bonus"))["total"] or 0
         collections = self.completed_collections.aggregate(total=models.Sum("collection__beauty_bonus"))["total"] or 0
-        return furniture + trophies + collections
+        fragments = sum(fragment.beauty_total for fragment in self.fragments.select_related("fragment_type"))
+        return furniture + trophies + collections + fragments
 
 
 class Pet(models.Model):
@@ -740,3 +741,222 @@ class ClubAnnouncement(models.Model):
 
     def __str__(self):
         return self.body[:40]
+
+
+class FragmentType(models.Model):
+    GARDEN = "garden"
+    JEWEL = "jewel"
+    KIND_CHOICES = [(GARDEN, "Garden"), (JEWEL, "Jewel")]
+
+    name = models.CharField(max_length=80, unique=True)
+    description = models.CharField(max_length=180)
+    kind = models.CharField(max_length=16, choices=KIND_CHOICES)
+    required_fragments = models.PositiveIntegerField(default=5)
+    beauty_bonus = models.PositiveIntegerField(default=0)
+    color = models.CharField(max_length=16, default="#45b08c")
+
+    def __str__(self):
+        return self.name
+
+
+class OwnedFragment(models.Model):
+    profile = models.ForeignKey(PlayerProfile, on_delete=models.CASCADE, related_name="fragments")
+    fragment_type = models.ForeignKey(FragmentType, on_delete=models.CASCADE)
+    quantity = models.PositiveIntegerField(default=0)
+    completed_count = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        unique_together = ("profile", "fragment_type")
+
+    @property
+    def beauty_total(self):
+        return self.completed_count * self.fragment_type.beauty_bonus
+
+    def __str__(self):
+        return f"{self.profile}: {self.fragment_type} x{self.quantity}"
+
+
+class AdventureRoute(models.Model):
+    name = models.CharField(max_length=80, unique=True)
+    description = models.CharField(max_length=180)
+    min_level = models.PositiveIntegerField(default=1)
+    duration_minutes = models.PositiveIntegerField(default=60)
+    energy_cost = models.PositiveIntegerField(default=10)
+    reward_coins = models.PositiveIntegerField(default=0)
+    reward_hearts = models.PositiveIntegerField(default=0)
+    reward_experience = models.PositiveIntegerField(default=0)
+    active = models.BooleanField(default=True)
+
+    def __str__(self):
+        return self.name
+
+
+class PetAdventure(models.Model):
+    profile = models.ForeignKey(PlayerProfile, on_delete=models.CASCADE, related_name="adventures")
+    pet = models.ForeignKey(Pet, on_delete=models.CASCADE, related_name="adventures")
+    route = models.ForeignKey(AdventureRoute, on_delete=models.CASCADE)
+    started_at = models.DateTimeField(auto_now_add=True)
+    finishes_at = models.DateTimeField()
+    completed = models.BooleanField(default=False)
+
+    class Meta:
+        ordering = ["-started_at"]
+
+    @property
+    def is_ready(self):
+        return timezone.now() >= self.finishes_at
+
+    def __str__(self):
+        return f"{self.pet} -> {self.route}"
+
+
+class CompetitionMode(models.Model):
+    AGILITY = "agility"
+    CHARM = "charm"
+    MOOD = "mood"
+    STAT_CHOICES = [(AGILITY, "Agility"), (CHARM, "Charm"), (MOOD, "Mood")]
+
+    name = models.CharField(max_length=80, unique=True)
+    description = models.CharField(max_length=180)
+    stat = models.CharField(max_length=16, choices=STAT_CHOICES)
+    min_level = models.PositiveIntegerField(default=1)
+    entry_fee = models.PositiveIntegerField(default=0)
+    reward_coins = models.PositiveIntegerField(default=0)
+    reward_hearts = models.PositiveIntegerField(default=0)
+    active = models.BooleanField(default=True)
+
+    def __str__(self):
+        return self.name
+
+
+class CompetitionEntry(models.Model):
+    mode = models.ForeignKey(CompetitionMode, on_delete=models.CASCADE, related_name="entries")
+    profile = models.ForeignKey(PlayerProfile, on_delete=models.CASCADE, related_name="competition_entries")
+    pet = models.ForeignKey(Pet, on_delete=models.CASCADE, related_name="competition_entries")
+    score = models.PositiveIntegerField(default=0)
+    league = models.CharField(max_length=40, default="Sprout")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-score", "-created_at"]
+
+    def __str__(self):
+        return f"{self.pet} in {self.mode}: {self.score}"
+
+
+class ChestType(models.Model):
+    name = models.CharField(max_length=80, unique=True)
+    description = models.CharField(max_length=180)
+    key_cost = models.PositiveIntegerField(default=1)
+    daily_limit = models.PositiveIntegerField(default=3)
+    min_coins = models.PositiveIntegerField(default=10)
+    max_coins = models.PositiveIntegerField(default=50)
+    color = models.CharField(max_length=16, default="#f3b84b")
+
+    def __str__(self):
+        return self.name
+
+
+class ChestOpening(models.Model):
+    profile = models.ForeignKey(PlayerProfile, on_delete=models.CASCADE, related_name="chest_openings")
+    chest_type = models.ForeignKey(ChestType, on_delete=models.CASCADE)
+    reward_text = models.CharField(max_length=160)
+    coins = models.PositiveIntegerField(default=0)
+    hearts = models.PositiveIntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return self.reward_text
+
+
+class GiftCatalogItem(models.Model):
+    name = models.CharField(max_length=80, unique=True)
+    description = models.CharField(max_length=180)
+    price_hearts = models.PositiveIntegerField(default=5)
+    color = models.CharField(max_length=16, default="#ef7b6a")
+
+    def __str__(self):
+        return self.name
+
+
+class SentGift(models.Model):
+    sender = models.ForeignKey(PlayerProfile, on_delete=models.CASCADE, related_name="sent_gifts")
+    recipient = models.ForeignKey(PlayerProfile, on_delete=models.CASCADE, related_name="received_gifts")
+    gift = models.ForeignKey(GiftCatalogItem, on_delete=models.CASCADE)
+    message = models.CharField(max_length=160, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"{self.sender} -> {self.recipient}: {self.gift}"
+
+
+class ForumCategory(models.Model):
+    name = models.CharField(max_length=80, unique=True)
+    description = models.CharField(max_length=180)
+    club = models.ForeignKey(Club, on_delete=models.CASCADE, null=True, blank=True, related_name="forum_categories")
+    is_news = models.BooleanField(default=False)
+
+    def __str__(self):
+        return self.name
+
+
+class ForumThread(models.Model):
+    category = models.ForeignKey(ForumCategory, on_delete=models.CASCADE, related_name="threads")
+    author = models.ForeignKey(PlayerProfile, on_delete=models.SET_NULL, null=True, blank=True)
+    title = models.CharField(max_length=120)
+    pinned = models.BooleanField(default=False)
+    locked = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-pinned", "-updated_at"]
+
+    def __str__(self):
+        return self.title
+
+
+class ForumPost(models.Model):
+    thread = models.ForeignKey(ForumThread, on_delete=models.CASCADE, related_name="posts")
+    author = models.ForeignKey(PlayerProfile, on_delete=models.SET_NULL, null=True, blank=True)
+    body = models.TextField(max_length=1200)
+    hidden = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["created_at"]
+
+    def __str__(self):
+        return self.body[:60]
+
+
+class HelpArticle(models.Model):
+    category = models.CharField(max_length=60)
+    title = models.CharField(max_length=120)
+    body = models.TextField(max_length=2000)
+    active = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ["category", "title"]
+
+    def __str__(self):
+        return self.title
+
+
+class GamePreference(models.Model):
+    profile = models.OneToOneField(PlayerProfile, on_delete=models.CASCADE, related_name="preferences")
+    compact_mode = models.BooleanField(default=False)
+    show_bottom_nav = models.BooleanField(default=True)
+    show_quick_actions = models.BooleanField(default=True)
+    reduced_motion = models.BooleanField(default=False)
+    low_bandwidth = models.BooleanField(default=False)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"Preferences for {self.profile}"
