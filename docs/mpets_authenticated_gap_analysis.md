@@ -444,6 +444,254 @@ Cozy Paws имеет support tickets, но mpets сначала ведет к п
 
 Это даст Cozy Paws новый слой прогрессии, который заметно приблизит игру к полноценному long-term pet browser game, но останется оригинальным по названию, визуалу и реализации.
 
+## Deep Crawl Update: Вложенные Страницы
+
+Дополнительный проход выполнен после первичного анализа. Было открыто 90 безопасных внутренних страниц и вложенных экранов. Я не нажимал ссылки, которые могли изменить состояние аккаунта: покупка, тренировка, вступление в очередь, открытие сундуков, выход, удаление, отметка сообщений прочитанными, пополнение копилки, сохранение форм, переименование, смена герба и похожие действия.
+
+### Покрытие Обхода
+
+Питомец и профиль:
+
+- `/profile`
+- `/profile?medals=1`
+- `/profile?cups=1`
+- `/avatars`
+- `/anketa`
+- `/food_play?back=profile`
+- `/view_posters`
+- `/friend_list`
+- `/black_list`
+
+Домик и предметы домика:
+
+- `/home`
+- `/home_list`
+- `/items?category=home`
+- страницы описания предметов домика `/view_pet_item?...type=home`
+- страницы апгрейда предметов домика были просмотрены только как экраны описания/перехода, без подтверждения действий
+
+Магазин, гардероб и инвентарь:
+
+- `/categories`
+- `/sets`
+- `/gear`
+- `/chest`
+- `/items?category=food`
+- `/items?category=play`
+- `/items?category=effect`
+
+Прогрессия и коллекции:
+
+- `/task`
+- `/task?type=all`
+- `/task?type=daily`
+- `/task?type=single`
+- `/collections`
+- `/artifacts`
+- `/prizes`
+- `/cups`
+- `/medals`
+- `/view_mygifts`
+
+Игровые режимы:
+
+- `/train`
+- `/assistants`
+- `/jewels`
+- `/garden`
+- `/travel`
+- `/glade`
+- `/show?start=1`
+- `/show_info`
+- `/races`
+- `/main/races_help`
+- `/charm`
+- `/gold_chest`
+- `/gold_chest/info`
+
+Социальные и сервисные разделы:
+
+- `/best`
+- `/online`
+- `/search_pet`
+- `/forum`
+- `/threads?id=1`
+- `/chat`
+- `/settings`
+- `/settings_game`
+- `/tickets`
+- `/ticket_sel_cat`
+- `/about`
+- `/actions_list`
+- `/paylist`
+
+Клуб:
+
+- `/club?id=5820`
+- `/forum?id=5820`
+- `/chat?id=5820`
+- `/collection_changer?back=club`
+- `/reception?id=5820`
+- `/club_history?id=5820`
+- `/club_hint`
+- `/club_settings?id=5820`
+- `/builds?id=5820`
+- `/club_budget?id=5820`
+- `/gerb?id=5820`
+- `/club_about`
+- `/club_rename`
+
+### Уточнения По Клубам
+
+Клубная система оказалась глубже, чем было видно в первом проходе. Ее стоит проектировать как отдельный модуль, а не как простую таблицу групп.
+
+Что есть в просмотренном клубном контуре:
+
+- Главная клуба с названием, описанием, датой основания, уровнем и опытом.
+- Состав клуба с лимитом участников и пагинацией.
+- Роли участников: директор, заместитель директора, куратор, новичок.
+- Очки/вклад участников рядом с ролью.
+- Клубные постройки с уровнями и бонусами.
+- Клубная копилка с двумя ресурсами и лимитом доступного пополнения.
+- История клуба с событиями по игрокам и топикам.
+- Набор игроков и список заявок.
+- Клубные объявления.
+- Клубный форум.
+- Клубный чат.
+- Обмен частями коллекций внутри клуба.
+- Настройки клуба: герб, описание, переименование, выход из клуба.
+
+Клубные постройки дают бонусы к разным системам:
+
+- личный опыт;
+- клубный опыт;
+- красота домика;
+- красота одежды;
+- красота драгоценностей;
+- красота сада;
+- общий бонус от уровня клуба к сердечкам и личному опыту.
+
+Рекомендованная модель для Cozy Paws:
+
+- `Club`: name, description, crest, level, experience, member_limit, treasury coins/hearts.
+- `ClubMembership`: profile, club, role, contribution_score, joined_at.
+- `ClubRole`: owner/director, deputy, curator/officer, member/newcomer, with permissions.
+- `ClubBuildingType`: key, title, max_level, affected_system, bonus_per_level.
+- `ClubBuilding`: club, building_type, level.
+- `ClubContribution`: profile, club, coins, hearts, created_at.
+- `ClubHistoryEvent`: club, actor, event_type, payload, created_at.
+- `ClubJoinRequest`: club, profile, message, status.
+- `ClubAnnouncement`: club, body, author, created_at.
+- `ClubForumCategory` or reuse forum categories with club scope.
+- `ClubCollectionTrade`: club-only exchange for duplicate collection pieces.
+
+Минимальный первый релиз клуба:
+
+1. Создание клуба.
+2. Вступление по заявке.
+3. Роли и лимит участников.
+4. Клубная главная.
+5. Копилка и вклад участников.
+6. История событий.
+7. Постройки с бонусами.
+
+Второй релиз клуба:
+
+1. Клубный чат.
+2. Клубный форум.
+3. Объявления.
+4. Набор игроков из online/search.
+5. Обмен коллекциями.
+6. Герб и косметические настройки.
+
+### Уточнения По Домику
+
+Домик у mpets - это не просто витрина, а система слотов и апгрейдов. У каждого предмета есть уровень, вклад в красоту и общий бонус домика. Есть отдельный магазин предметов домика и список установленных предметов.
+
+Для Cozy Paws домик лучше делать в три слоя:
+
+1. Комната питомца: визуальное и коллекционное пространство.
+2. Предметы мебели: покупка, владение, размещение.
+3. Апгрейды мебели: уровни, стоимость, рост бонуса.
+
+Модели:
+
+- `Home`.
+- `HomeSlot`.
+- `FurnitureItem`.
+- `OwnedFurniture`.
+- `PlacedFurniture`.
+- `FurnitureUpgrade`.
+
+### Уточнения По Коллекциям И Обмену
+
+Коллекции состоят из частей. У игрока могут быть дубликаты. Клубный обмен работает как one-to-one обмен частями между участниками клуба.
+
+Для Cozy Paws:
+
+- части коллекций должны выпадать из exploration/adventures/chests/events;
+- дубликаты не должны быть мусором, они нужны для обмена;
+- обмен стоит запускать только после появления клубов;
+- коллекции должны давать permanent bonus или косметический unlock.
+
+### Уточнения По Тренировкам И Работникам
+
+Тренировка в mpets прокачивает не просто питомца, а множители для категорий предметов: одежда, аксессуары, украшения и похожие системы. Работники усиливают другие коллекционные подсистемы: драгоценности, сад, домик.
+
+Для Cozy Paws лучше разделить:
+
+- pet traits: agility, obedience, charm;
+- account upgrades: assistants/workers;
+- system multipliers: wardrobe_bonus, home_bonus, garden_bonus, jewel_bonus.
+
+### Уточнения По Режимам
+
+Соревновательные режимы разделены по типам:
+
+- выставка: beauty/rating based, с ограничением показов и страницами результата;
+- скачки: queue-based режим с лигой и рейтингом;
+- снежки: queue-based режим на несколько игроков;
+- прогулки: timer-based задания на несколько часов;
+- поляна: daily attempts и шанс найти материалы.
+
+Для Cozy Paws это можно превратить в оригинальные режимы:
+
+- Shows: оставить и расширить сезонами.
+- Adventures: долгие прогулки с завершением по времени.
+- Meadow: ежедневный поиск материалов.
+- Races: очередь и лига на agility.
+- Cozy Clash: оригинальный легкий multiplayer mode на charm/mood без копирования темы снежков.
+
+### Уточнения По Поддержке И Настройкам
+
+Служба поддержки сначала ведет игрока к базе помощи, затем к выбору категории обращения. Настройки игры отделены от настроек аккаунта.
+
+Для Cozy Paws:
+
+- добавить help center перед созданием ticket;
+- добавить категории обращений;
+- добавить настройки интерфейса: compact mode, bottom nav visibility, quick actions visibility, reduced animation, low bandwidth mode;
+- добавить account settings отдельно от game settings.
+
+### Обновленный Приоритет После Deep Crawl
+
+Новый порядок после полного обхода:
+
+1. Home/furniture/upgrades.
+2. Collections with duplicate pieces.
+3. Trophies/prizes/cups/medals as permanent bonuses.
+4. Meadow/exploration as source of collection pieces.
+5. Garden and jewels as fragment systems.
+6. Assistants/workers as account upgrades.
+7. Clubs with roles, treasury, buildings, history.
+8. Club collection exchange.
+9. Adventures with timers.
+10. Queue-based competitions and leagues.
+11. Gifts.
+12. Forum/news and stronger mail UX.
+13. Help center and ticket categories.
+14. Game settings and low-bandwidth mode.
+
 ## Non-Goals
 
 - Не копировать mpets.mobi пиксель-в-пиксель.
