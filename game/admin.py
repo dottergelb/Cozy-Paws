@@ -36,6 +36,8 @@ from .models import (
     HelpArticle,
     InventoryItem,
     Item,
+    MemoryChapter,
+    MemoryPrompt,
     OwnedCollectionPiece,
     OwnedFragment,
     OwnedFurniture,
@@ -134,6 +136,20 @@ class EquippedWearableAdmin(admin.ModelAdmin):
 class ActionCooldownAdmin(admin.ModelAdmin):
     list_display = ("profile", "key", "available_at")
     list_filter = ("key",)
+
+
+@admin.register(MemoryPrompt)
+class MemoryPromptAdmin(admin.ModelAdmin):
+    list_display = ("title", "theme", "energy_cost", "coin_cost", "reward_coins", "reward_hearts", "heart_boost_cost", "active")
+    list_filter = ("theme", "active")
+    search_fields = ("title", "description")
+
+
+@admin.register(MemoryChapter)
+class MemoryChapterAdmin(admin.ModelAdmin):
+    list_display = ("profile", "pet", "prompt", "date", "boosted", "reward_coins", "reward_hearts", "bond_delta")
+    list_filter = ("date", "boosted", "prompt__theme")
+    search_fields = ("profile__user__username", "pet__name", "title", "story")
 
 
 @admin.register(PetShow)

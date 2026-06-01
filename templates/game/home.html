@@ -1,36 +1,84 @@
 {% extends "base.html" %}
+{% load static %}
 {% block title %}Cozy Paws - игра про питомцев{% endblock %}
 {% block content %}
-<section class="hero">
-    <div class="hero-art" aria-hidden="true">
-        <div class="pet-orbit">
-            <span class="pet-face cat"></span>
-            <span class="pet-face dog"></span>
-            <span class="pet-face bunny"></span>
+<section class="landing-hero">
+    <div class="landing-copy">
+        <h1>Cozy Paws</h1>
+        <p>Браузерная pet-RPG, где питомец растет через заботу, домик, клубы, коллекции и личную Тропу памяти.</p>
+        <div class="hero-actions">
+            <a class="button primary" href="{% url 'register' %}">Начать игру</a>
+            <a class="button ghost" href="{% url 'login' %}">Войти</a>
+        </div>
+        <div class="landing-proof" aria-label="Ключевые игровые циклы">
+            <span>Ежедневные главы</span>
+            <span>Клубы и подарки</span>
+            <span>Домик и стиль</span>
         </div>
     </div>
-    <h1>Cozy Paws</h1>
-    <p>Локальная браузерная игра про заботу, маленькие победы и питомцев, которые растут вместе с игроком.</p>
-    <div class="hero-actions">
-        <a class="button primary" href="{% url 'register' %}">Начать игру</a>
-        <a class="button ghost" href="{% url 'rating' %}">Рейтинг</a>
+    <div class="landing-visual">
+        <img src="{% static 'game/img/sanctuary-mint.png' %}" alt="Мята в уютном домике Cozy Paws">
+        <div class="landing-pet-card">
+            <span>Лисенок</span>
+            <strong>Мята</strong>
+            <small>Связь 1 ур. · настроение 100</small>
+        </div>
+        <div class="landing-reward"><svg><use href="#i-heart"></use></svg> +10</div>
     </div>
 </section>
-<section class="feature-grid">
-    <article>
-        <svg><use href="#i-paw"></use></svg>
-        <h2>Питомцы</h2>
-        <p>Создавай питомцев, выбирай активного и улучшай его уровень.</p>
-    </article>
-    <article>
-        <svg><use href="#i-bag"></use></svg>
-        <h2>Предметы</h2>
-        <p>Покупай еду, игрушки и вещи для ухода в магазине.</p>
-    </article>
-    <article>
-        <svg><use href="#i-star"></use></svg>
-        <h2>Задания</h2>
-        <p>Выполняй ежедневные цели и забирай награды.</p>
-    </article>
+
+<section class="landing-section landing-loop">
+    <div class="section-kicker">Игровая петля</div>
+    <h2>Игроку всегда понятно, зачем вернуться</h2>
+    <div class="landing-card-grid">
+        <article>
+            <span class="step-mark">1</span>
+            <h3>Забота</h3>
+            <p>Кормление, прогулки, настроение, энергия и связь питомца видны на первом экране.</p>
+        </article>
+        <article>
+            <span class="step-mark">2</span>
+            <h3>Тропа памяти</h3>
+            <p>Каждый день питомец пишет новую главу. Это эмоциональный альбом, а не просто счетчик.</p>
+        </article>
+        <article>
+            <span class="step-mark">3</span>
+            <h3>Социальный рост</h3>
+            <p>Клубы, подарки, лиги, коллекции и домик дают долгие цели без ощущения пустого гринда.</p>
+        </article>
+    </div>
+</section>
+
+<section class="landing-section landing-split">
+    <div>
+        <div class="section-kicker">Killer feature</div>
+        <h2>Тропа памяти превращает действия в историю</h2>
+        <p>Вместо одноразовых кликов игрок получает персональные главы про питомца. Премиальная искра усиливает опыт и связь, но не ломает баланс, поэтому донат выглядит как забота и коллекционирование.</p>
+        <div class="hero-actions">
+            <a class="button primary" href="{% url 'register' %}">Создать питомца</a>
+            <a class="button ghost" href="{% url 'rating' %}">Смотреть рейтинг</a>
+        </div>
+    </div>
+    <div class="memory-preview">
+        <span>01 Июн · Мята</span>
+        <strong>Солнечный домик: глава 1</strong>
+        <p>Мята принес игрушку и устроился рядом. Домик добавил уюта, поэтому история получилась особенно яркой.</p>
+    </div>
+</section>
+
+<section class="landing-section">
+    <div class="section-kicker">Экономика</div>
+    <h2>Монетизация без pay-to-win</h2>
+    <div class="landing-card-grid economy-grid">
+        <article><h3>Сердца</h3><p>Премиальная валюта для искр, подарков, сундуков и ускорения эмоционального прогресса.</p></article>
+        <article><h3>Домик</h3><p>Мебель и улучшения дают понятные долгосрочные бонусы и визуальную цель.</p></article>
+        <article><h3>Клубы</h3><p>Игроки вкладываются вместе, помогают друг другу и получают повод возвращаться.</p></article>
+    </div>
+</section>
+
+<section class="landing-cta">
+    <h2>Запусти первую главу сегодня</h2>
+    <p>Локальный demo-аккаунт после seed: demo / demo12345.</p>
+    <a class="button primary" href="{% url 'register' %}">Начать игру</a>
 </section>
 {% endblock %}

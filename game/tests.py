@@ -29,6 +29,8 @@ from .models import (
     GiftCatalogItem,
     HelpArticle,
     Item,
+    MemoryChapter,
+    MemoryPrompt,
     OwnedCollectionPiece,
     OwnedFragment,
     OwnedFurniture,
@@ -65,6 +67,19 @@ class GameFlowTests(TestCase):
         Quest.objects.create(title="Кормление", description="Тест", action=Quest.FEED, reward_coins=5)
         Quest.objects.create(title="Тренировка", description="Тест", action=Quest.TRAIN, reward_coins=5)
         Quest.objects.create(title="Выставка", description="Тест", action=Quest.SHOW, reward_coins=5)
+        Quest.objects.create(title="Память", description="Тест", action=Quest.MEMORY, reward_coins=5)
+        self.memory_prompt = MemoryPrompt.objects.create(
+            title="Test Memory",
+            description="A test memory prompt",
+            theme=MemoryPrompt.CARE,
+            energy_cost=8,
+            coin_cost=3,
+            reward_coins=20,
+            reward_hearts=1,
+            reward_experience=10,
+            bond_delta=12,
+            heart_boost_cost=4,
+        )
         self.wearable = WearableItem.objects.create(
             name="Тестовый венок",
             description="Тест",
@@ -316,6 +331,28 @@ class GameFlowTests(TestCase):
         self.profile.refresh_from_db()
         self.assertEqual(self.profile.coins, 105)
 
+    def test_memory_chapter_creates_daily_story_and_rewards(self):
+        self.profile.hearts = 10
+        self.profile.save(update_fields=["hearts"])
+        self.client.login(username="player", password="strong-pass-123")
+        response = self.client.post(reverse("create_memory", args=[self.memory_prompt.id]), {"boosted": "1"})
+        self.assertRedirects(response, reverse("memory_trail"))
+        chapter = MemoryChapter.objects.get(profile=self.profile)
+        self.profile.refresh_from_db()
+        self.pet.refresh_from_db()
+        self.assertTrue(chapter.boosted)
+        self.assertIn(self.pet.name, chapter.story)
+        self.assertEqual(self.profile.coins, 129)
+        self.assertEqual(self.profile.hearts, 7)
+        self.assertEqual(self.pet.bond, 26)
+        self.assertEqual(self.pet.energy, 72)
+        self.assertTrue(self.profile.quest_progress.filter(quest__action=Quest.MEMORY, completed=True).exists())
+
+        self.profile.cooldowns.all().delete()
+        response = self.client.post(reverse("create_memory", args=[self.memory_prompt.id]))
+        self.assertRedirects(response, reverse("memory_trail"))
+        self.assertEqual(MemoryChapter.objects.filter(profile=self.profile).count(), 1)
+
     def test_gift_send_records_message(self):
         self.profile.hearts = 10
         self.profile.save(update_fields=["hearts"])
@@ -351,6 +388,6 @@ class GameFlowTests(TestCase):
 
     def test_new_sections_render_for_logged_in_user(self):
         self.client.login(username="player", password="strong-pass-123")
-        for name in ["fragments", "adventures", "competitions", "chests", "gifts", "forum"]:
+        for name in ["fragments", "adventures", "competitions", "chests", "gifts", "forum", "memory_trail"]:
             response = self.client.get(reverse(name))
             self.assertEqual(response.status_code, 200, name)

@@ -45,6 +45,7 @@ from .models import (
     HelpArticle,
     InventoryItem,
     Item,
+    MemoryPrompt,
     OwnedCollectionPiece,
     OwnedFragment,
     OwnedFurniture,
@@ -66,6 +67,7 @@ from .models import (
     UserReport,
     WearableItem,
 )
+from .services.memories import MemoryCreationError, create_memory_chapter, memory_available_today
 
 
 ACTION_RULES = {
@@ -128,6 +130,7 @@ COOLDOWNS = {
     "chest": 5,
     "gift": 5,
     "forum": 5,
+    "memory": 5,
 }
 
 
@@ -341,6 +344,10 @@ def dashboard(request):
         "online_count": online_count(),
         "actions": ACTION_RULES,
         "preferences": get_preferences(profile),
+        "todays_memory": profile.memory_chapters.select_related("pet", "prompt").filter(date=timezone.localdate()).first(),
+        "latest_memory": profile.memory_chapters.select_related("pet", "prompt").first(),
+        "memory_prompt": MemoryPrompt.objects.filter(active=True).order_by("theme", "title").first(),
+        "memory_count": profile.memory_chapters.count(),
     }
     check_passive_achievements(request, profile)
     return render(request, "game/dashboard.html", context)
@@ -934,6 +941,60 @@ def enter_show(request, show_id):
 def quests(request):
     profile_obj = get_profile(request.user)
     return render(request, "game/quests.html", {"profile": profile_obj, "quest_progress": sync_daily_quests(profile_obj)})
+
+
+@login_required
+def memory_trail(request):
+    profile_obj = get_profile(request.user)
+    pet = active_pet(request.user)
+    today = timezone.localdate()
+    prompts = MemoryPrompt.objects.filter(active=True).order_by("theme", "title")
+    chapters = profile_obj.memory_chapters.select_related("pet", "prompt")[:12]
+    return render(
+        request,
+        "game/memory_trail.html",
+        {
+            "profile": profile_obj,
+            "pet": pet,
+            "prompts": prompts,
+            "chapters": chapters,
+            "todays_memory": profile_obj.memory_chapters.select_related("pet", "prompt").filter(date=today).first(),
+            "available_today": memory_available_today(profile_obj),
+        },
+    )
+
+
+@login_required
+def create_memory(request, prompt_id):
+    if request.method != "POST":
+        return redirect("memory_trail")
+    profile_obj = get_profile(request.user)
+    pet = active_pet(request.user)
+    prompt = get_object_or_404(MemoryPrompt, id=prompt_id, active=True)
+    if not pet:
+        messages.error(request, "Сначала создай питомца.")
+        return redirect("create_pet")
+    if not enforce_cooldown(request, profile_obj, "memory"):
+        return redirect("memory_trail")
+    try:
+        chapter = create_memory_chapter(
+            profile=profile_obj,
+            pet=pet,
+            prompt=prompt,
+            boosted=bool(request.POST.get("boosted")),
+        )
+    except MemoryCreationError as exc:
+        messages.error(request, str(exc))
+        return redirect("memory_trail")
+
+    add_quest_progress(profile_obj, Quest.MEMORY)
+    log_action(profile_obj, f"Создана глава памяти «{chapter.title}».", pet)
+    check_passive_achievements(request, profile_obj)
+    messages.success(
+        request,
+        f"Глава создана: +{chapter.reward_coins} монет, +{chapter.reward_hearts} сердечек, +{chapter.bond_delta} связи.",
+    )
+    return redirect("memory_trail")
 
 
 @login_required
