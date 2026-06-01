@@ -53,6 +53,7 @@ class Pet(models.Model):
     energy = models.PositiveIntegerField(default=80)
     mood = models.PositiveIntegerField(default=80)
     hunger = models.PositiveIntegerField(default=70)
+    bond = models.PositiveIntegerField(default=0)
     beauty = models.PositiveIntegerField(default=5)
     agility = models.PositiveIntegerField(default=1)
     obedience = models.PositiveIntegerField(default=1)
@@ -78,6 +79,17 @@ class Pet(models.Model):
             self.level += 1
             self.energy = min(100, self.energy + 18)
             self.mood = min(100, self.mood + 12)
+
+    @property
+    def bond_level(self):
+        return 1 + self.bond // 100
+
+    @property
+    def bond_percent(self):
+        return self.bond % 100
+
+    def add_bond(self, amount):
+        self.bond += max(0, amount)
 
     def change_stats(self, *, energy=0, mood=0, hunger=0):
         self.energy = min(100, max(0, self.energy + energy))
@@ -194,6 +206,7 @@ class Quest(models.Model):
     BUY = "buy"
     TRAIN = "train"
     SHOW = "show"
+    MEMORY = "memory"
     ACTION_CHOICES = [
         (FEED, "Покормить"),
         (PLAY, "Поиграть"),
@@ -202,6 +215,7 @@ class Quest(models.Model):
         (BUY, "Покупка"),
         (TRAIN, "Тренировка"),
         (SHOW, "Выставка"),
+        (MEMORY, "Тропа памяти"),
     ]
 
     title = models.CharField(max_length=100)
@@ -293,6 +307,61 @@ class ActionCooldown(models.Model):
 
     def __str__(self):
         return f"{self.profile}: {self.key} until {self.available_at}"
+
+
+class MemoryPrompt(models.Model):
+    CARE = "care"
+    EXPLORE = "explore"
+    STYLE = "style"
+    SOCIAL = "social"
+    THEME_CHOICES = [
+        (CARE, "Забота"),
+        (EXPLORE, "Исследование"),
+        (STYLE, "Стиль"),
+        (SOCIAL, "Дружба"),
+    ]
+
+    title = models.CharField(max_length=90, unique=True)
+    description = models.CharField(max_length=220)
+    theme = models.CharField(max_length=20, choices=THEME_CHOICES, default=CARE)
+    energy_cost = models.PositiveIntegerField(default=8)
+    coin_cost = models.PositiveIntegerField(default=0)
+    reward_coins = models.PositiveIntegerField(default=20)
+    reward_hearts = models.PositiveIntegerField(default=1)
+    reward_experience = models.PositiveIntegerField(default=10)
+    bond_delta = models.PositiveIntegerField(default=12)
+    heart_boost_cost = models.PositiveIntegerField(default=0)
+    active = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ["theme", "title"]
+
+    def __str__(self):
+        return self.title
+
+
+class MemoryChapter(models.Model):
+    profile = models.ForeignKey(PlayerProfile, on_delete=models.CASCADE, related_name="memory_chapters")
+    pet = models.ForeignKey(Pet, on_delete=models.CASCADE, related_name="memory_chapters")
+    prompt = models.ForeignKey(MemoryPrompt, on_delete=models.PROTECT, related_name="chapters")
+    date = models.DateField(default=timezone.localdate)
+    title = models.CharField(max_length=120)
+    story = models.TextField(max_length=900)
+    reward_coins = models.PositiveIntegerField(default=0)
+    reward_hearts = models.PositiveIntegerField(default=0)
+    reward_experience = models.PositiveIntegerField(default=0)
+    bond_delta = models.PositiveIntegerField(default=0)
+    boosted = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-date", "-created_at"]
+        constraints = [
+            models.UniqueConstraint(fields=["profile", "date"], name="unique_daily_memory_chapter"),
+        ]
+
+    def __str__(self):
+        return f"{self.pet.name}: {self.title}"
 
 
 class PetShow(models.Model):

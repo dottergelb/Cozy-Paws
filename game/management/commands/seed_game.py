@@ -1,5 +1,6 @@
 from django.contrib.auth.models import User
 from django.core.management.base import BaseCommand
+from django.utils import timezone
 
 from game.models import (
     Achievement,
@@ -24,6 +25,8 @@ from game.models import (
     GiftCatalogItem,
     HelpArticle,
     Item,
+    MemoryChapter,
+    MemoryPrompt,
     OwnedCollectionPiece,
     OwnedFragment,
     OwnedFurniture,
@@ -156,9 +159,70 @@ class Command(BaseCommand):
                 "reward_coins": 28,
                 "reward_experience": 10,
             },
+            {
+                "title": "Глава дня",
+                "description": "Создай новую главу в Тропе памяти.",
+                "action": Quest.MEMORY,
+                "target_count": 1,
+                "reward_coins": 32,
+                "reward_experience": 14,
+            },
         ]
         for data in quests:
             Quest.objects.update_or_create(title=data["title"], defaults={**data, "active": True})
+
+        memory_prompts = [
+            {
+                "title": "Солнечный домик",
+                "description": "Питомец замечает маленькую деталь в комнате и превращает ее в историю.",
+                "theme": MemoryPrompt.CARE,
+                "energy_cost": 8,
+                "coin_cost": 0,
+                "reward_coins": 24,
+                "reward_hearts": 1,
+                "reward_experience": 10,
+                "bond_delta": 14,
+                "heart_boost_cost": 6,
+            },
+            {
+                "title": "Записка с поляны",
+                "description": "Короткая прогулка становится редкой страницей альбома.",
+                "theme": MemoryPrompt.EXPLORE,
+                "energy_cost": 12,
+                "coin_cost": 6,
+                "reward_coins": 34,
+                "reward_hearts": 2,
+                "reward_experience": 16,
+                "bond_delta": 18,
+                "heart_boost_cost": 8,
+            },
+            {
+                "title": "Портрет для клуба",
+                "description": "История, которую приятно показать друзьям и клубу.",
+                "theme": MemoryPrompt.SOCIAL,
+                "energy_cost": 10,
+                "coin_cost": 4,
+                "reward_coins": 30,
+                "reward_hearts": 2,
+                "reward_experience": 12,
+                "bond_delta": 16,
+                "heart_boost_cost": 7,
+            },
+            {
+                "title": "Нарядная сцена",
+                "description": "Питомец вспоминает день как мини-выставку с личной деталью.",
+                "theme": MemoryPrompt.STYLE,
+                "energy_cost": 10,
+                "coin_cost": 8,
+                "reward_coins": 38,
+                "reward_hearts": 2,
+                "reward_experience": 14,
+                "bond_delta": 17,
+                "heart_boost_cost": 9,
+            },
+        ]
+        for data in memory_prompts:
+            MemoryPrompt.objects.update_or_create(title=data["title"], defaults={**data, "active": True})
 
         wearables = [
             {
@@ -503,7 +567,13 @@ class Command(BaseCommand):
         profile.hearts = max(profile.hearts, 120)
         profile.save(update_fields=["display_name", "coins", "hearts"])
         GamePreference.objects.get_or_create(profile=profile)
-        Pet.objects.get_or_create(owner=demo, name="Мята", defaults={"species": Pet.FOX, "active": True, "level": 2})
+        Pet.objects.filter(owner=demo).update(active=False)
+        demo_pet, _ = Pet.objects.get_or_create(owner=demo, name="Мята", defaults={"species": Pet.FOX, "level": 2})
+        demo_pet.species = Pet.FOX
+        demo_pet.level = max(demo_pet.level, 2)
+        demo_pet.active = True
+        demo_pet.save(update_fields=["species", "level", "active"])
+        demo_pet = Pet.objects.filter(owner=demo, name="Мята").first()
 
         for furniture in FurnitureItem.objects.order_by("price")[:2]:
             owned, _ = OwnedFurniture.objects.get_or_create(profile=profile, item=furniture)
@@ -536,5 +606,27 @@ class Command(BaseCommand):
         if news_category:
             thread, _ = ForumThread.objects.get_or_create(category=news_category, title="Welcome to Cozy Paws", defaults={"author": profile, "pinned": True})
             ForumPost.objects.get_or_create(thread=thread, author=profile, body="This local build now includes clubs, adventures, chests, gifts, and forum pages.")
+        starter_prompt = MemoryPrompt.objects.filter(active=True).order_by("theme", "title").first()
+        if demo_pet and starter_prompt:
+            starter_date = timezone.localdate() - timezone.timedelta(days=1)
+            MemoryChapter.objects.filter(
+                profile=profile,
+                date=timezone.localdate(),
+                title="Солнечный домик: первая глава",
+            ).exclude(date=starter_date).update(date=starter_date)
+            MemoryChapter.objects.get_or_create(
+                profile=profile,
+                date=starter_date,
+                defaults={
+                    "pet": demo_pet,
+                    "prompt": starter_prompt,
+                    "title": "Солнечный домик: первая глава",
+                    "story": "Мята нашла теплое место у окна и сделала первый день в Cozy Paws похожим на маленький праздник.",
+                    "reward_coins": 24,
+                    "reward_hearts": 1,
+                    "reward_experience": 10,
+                    "bond_delta": 14,
+                },
+            )
 
         self.stdout.write(self.style.SUCCESS("Starter data is ready. Demo login: demo / demo12345"))
